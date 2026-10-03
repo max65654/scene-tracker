@@ -562,6 +562,8 @@ body.dark .series-avg-note .san-val{color:var(--sun);}
 .landscape-toggle{position:absolute;top:8px;right:92px;width:22px;height:22px;border-radius:50%;border:none;background:rgba(255,255,255,.85);font-size:.8rem;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:2;box-shadow:0 1px 3px rgba(0,0,0,.2);filter:grayscale(1);opacity:.55;transition:transform .15s,filter .15s,opacity .15s;}
 .landscape-toggle:hover{transform:scale(1.12);}
 .landscape-toggle.active{filter:none;opacity:1;background:rgba(255,255,255,.95);}
+.vid-quick-play{position:absolute;top:8px;right:120px;width:22px;height:22px;border-radius:50%;border:none;background:rgba(255,77,109,.92);color:#fff;font-size:.75rem;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:2;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:transform .15s;}
+.vid-quick-play:hover{transform:scale(1.12);}
 .perf-rank-list{display:flex;flex-direction:column;gap:8px;}
 .perf-rank-row{display:flex;align-items:center;gap:12px;background:var(--card-bg);border-radius:14px;padding:9px 14px;cursor:pointer;box-shadow:0 2px 0 var(--shadow);transition:transform .15s;}
 .perf-rank-row:hover{transform:translateX(3px);}
@@ -2263,11 +2265,26 @@ body.dark .subr-details summary{color:#C9A8FF;}
       <div class="aib-gallery" id="aib-gallery"></div>
     </div>
     <div class="form-grid">
-      <div class="poster-upload" id="poster-upload">
-        <button type="button" class="remove-poster" id="remove-poster">✕</button>
-        <span class="icon" style="font-size:1.7rem">🖼️</span>
-        <span class="ptxt">Affiche</span>
-        <input type="file" id="poster-input" accept="image/*">
+      <div>
+        <div class="poster-upload" id="poster-upload">
+          <button type="button" class="remove-poster" id="remove-poster">✕</button>
+          <span class="icon" style="font-size:1.7rem">🖼️</span>
+          <span class="ptxt">Affiche</span>
+          <input type="file" id="poster-input" accept="image/*">
+        </div>
+        <div style="margin-top:8px;">
+          <label style="font-size:.76rem;color:var(--muted);display:block;margin-bottom:4px;">Format de l'affiche</label>
+          <select id="poster-format-input" style="font-size:.76rem;padding:5px 8px;width:100%;">
+            <option value="vertical">📱 Vertical (portrait)</option>
+            <option value="landscape">🖥️ Paysage (16:9)</option>
+          </select>
+        </div>
+        <div style="margin-top:10px;">
+          <label style="font-size:.76rem;color:var(--muted);display:block;margin-bottom:5px;">🎥 Extrait vidéo perso</label>
+          <input type="file" id="video-input" accept="video/*" style="display:none;">
+          <button type="button" class="sub-action" id="video-pick-btn" style="font-size:.72rem;">📁 Importer un extrait</button>
+          <div id="video-status" style="font-size:.72rem;color:var(--muted);margin-top:5px;display:none;">🎥 Extrait attaché <button type="button" id="remove-video" style="border:none;background:none;color:var(--raspberry);cursor:pointer;font-size:.8rem;">✕</button></div>
+        </div>
       </div>
       <div>
         <div class="field-row">
@@ -4297,6 +4314,21 @@ pu.addEventListener('click',function(e){if(e.target===rp)return;pi.click();});
 pi.addEventListener('change',function(e){var f=e.target.files[0];if(!f)return;if(f.size>4*1024*1024){toast('Image trop lourde');return;}var r=new FileReader();r.onload=function(ev){posterDataUrl=ev.target.result;pu.style.backgroundImage='url('+posterDataUrl+')';pu.classList.add('has-img');};r.readAsDataURL(f);});
 rp.addEventListener('click',function(e){e.stopPropagation();posterDataUrl='';pu.style.backgroundImage='';pu.classList.remove('has-img');pi.value='';});
 
+/* ====== EXTRAIT VIDÉO PERSO (importé depuis ton PC, stocké en local via IndexedDB —
+   voir saveLocalVideo/getLocalVideo/deleteLocalVideo plus bas) — inspiré de la même
+   fonctionnalité sur mon-vr-tracker.html, directement dispo dès l'ajout/l'édition
+   plutôt que seulement depuis la fiche une fois le titre déjà enregistré. ====== */
+var pendingVideoFile=null,pendingVideoRemove=false;
+var vidInput=document.getElementById('video-input'),vidPickBtn=document.getElementById('video-pick-btn'),vidStatus=document.getElementById('video-status'),vidRemoveBtn=document.getElementById('remove-video');
+function setVideoStatusUI(attached){if(vidStatus)vidStatus.style.display=attached?'block':'none';}
+if(vidPickBtn)vidPickBtn.addEventListener('click',function(){vidInput.click();});
+if(vidInput)vidInput.addEventListener('change',function(e){
+  var f=e.target.files[0];if(!f)return;
+  if(f.size>200*1024*1024){toast('Vidéo trop lourde (max 200 Mo)');vidInput.value='';return;}
+  pendingVideoFile=f;pendingVideoRemove=false;setVideoStatusUI(true);toast('Extrait vidéo prêt à être attaché 🎥');
+});
+if(vidRemoveBtn)vidRemoveBtn.addEventListener('click',function(e){e.stopPropagation();pendingVideoFile=null;pendingVideoRemove=true;if(vidInput)vidInput.value='';setVideoStatusUI(false);});
+
 /* ====== TMDB SEARCH ====== */
 var searchIn=document.getElementById('search-input'),searchRes=document.getElementById('search-results'),dirIn=document.getElementById('director-input'),castIn=document.getElementById('cast-input');
 var stOut,tmdbSelected=null;
@@ -4491,6 +4523,8 @@ function resetForm(){
   document.getElementById('prog-s').value=1;document.getElementById('prog-e').value=1;document.getElementById('prog-bar').style.width='0%';
   updateRatingUI(0);currentFav=false;currentTags=[];heartBtn.classList.remove('active');heartBtn.textContent='♡';renderTags();
   posterDataUrl='';pu.style.backgroundImage='';pu.classList.remove('has-img');pi.value='';
+  var _pf0=document.getElementById('poster-format-input');if(_pf0)_pf0.value='vertical';
+  pendingVideoFile=null;pendingVideoRemove=false;if(vidInput)vidInput.value='';setVideoStatusUI(false);
   document.querySelectorAll('.type-btn').forEach(function(b){b.classList.remove('active');});document.querySelector('.type-btn[data-type="film"]').classList.add('active');currentType='film';currentCartoon=false;var _cc0=document.getElementById('cartoon-input');if(_cc0)_cc0.checked=false;
   document.querySelectorAll('.status-btn').forEach(function(b){b.classList.remove('active');});document.querySelector('.status-btn[data-status="termine"]').classList.add('active');currentStatus='termine';
   editingId=null;tmdbSelected=null;window._tmdbInfo=null;
@@ -4511,6 +4545,8 @@ function loadIntoForm(item){
   updateRatingUI(item.rating||0);currentFav=!!item.fav;currentTags=(item.tags||[]).slice();
   heartBtn.classList.toggle('active',currentFav);heartBtn.textContent=currentFav?'♥':'♡';renderTags();
   posterDataUrl=item.poster||'';if(posterDataUrl){pu.style.backgroundImage='url('+posterDataUrl+')';pu.classList.add('has-img');}else{pu.style.backgroundImage='';pu.classList.remove('has-img');}
+  var _pf1=document.getElementById('poster-format-input');if(_pf1)_pf1.value=item.posterFormat==='landscape'?'landscape':'vertical';
+  pendingVideoFile=null;pendingVideoRemove=false;if(vidInput)vidInput.value='';setVideoStatusUI(!!item.hasLocalVideo);
   document.querySelectorAll('.type-btn').forEach(function(b){b.classList.remove('active');});var _tt=item.type==='serie'?'serie':'film';var _tb=document.querySelector('.type-btn[data-type="'+_tt+'"]');if(_tb)_tb.classList.add('active');currentType=_tt;currentCartoon=!!item.cartoon;var _cc1=document.getElementById('cartoon-input');if(_cc1)_cc1.checked=!!item.cartoon;
   document.querySelectorAll('.status-btn').forEach(function(b){b.classList.remove('active');});document.querySelector('.status-btn[data-status="'+(item.status||'termine')+'"]').classList.add('active');currentStatus=item.status||'termine';
   if(item.progress){document.getElementById('prog-s').value=item.progress.s||1;document.getElementById('prog-e').value=item.progress.e||1;}
@@ -4531,6 +4567,10 @@ document.getElementById('add-btn').addEventListener('click',function(){
   // sinon mettre une série en pause depuis le formulaire effaçait sa progression (S1E1
   // au lieu de là où on s'était arrêté, à la ré-ouverture de la fiche).
   var prog=currentType==='serie'&&(currentStatus==='en_cours'||currentStatus==='en_pause')?{s:parseInt(document.getElementById('prog-s').value)||1,e:parseInt(document.getElementById('prog-e').value)||1}:null;
+  var posterFormat=((document.getElementById('poster-format-input')||{}).value==='landscape')?'landscape':'vertical';
+  // Capturés avant resetForm() (qui les remet à zéro) pour pouvoir attacher/retirer
+  // l'extrait vidéo perso une fois l'id définitif connu (nouvel ajout ou édition).
+  var vFile=pendingVideoFile,vRemove=pendingVideoRemove,savedItemId=null;
   if(editingId!==null){
     var idx=items.findIndex(function(i){return i.id===editingId;});
     if(idx!==-1){
@@ -4540,7 +4580,8 @@ document.getElementById('add-btn').addEventListener('click',function(){
       // chaque enregistrement, alors que saveProgress()/resumeFromPause() s'occupent
       // déjà de mettre lastEpDate à jour quand on avance vraiment dans les épisodes.
       var progChanged=prog&&(!prevProg||prevProg.s!==prog.s||prevProg.e!==prog.e);
-      items[idx]=Object.assign({},items[idx],{title:title,year:document.getElementById('year-input').value.trim(),type:currentType,cartoon:currentCartoon,status:currentStatus,rating:currentRating,fav:currentFav,tags:currentTags.slice(),review:document.getElementById('review-input').value.trim(),personalNotes:document.getElementById('notes-input').value.trim(),quote:document.getElementById('quote-input').value.trim(),poster:posterDataUrl,director:dirIn.value.trim(),cast:castIn.value.trim(),watchedDate:document.getElementById('watched-date-input').value,favChar:document.getElementById('favchar-input').value.trim(),favCouple:document.getElementById('favcouple-input').value.trim(),progress:prog,lastEpDate:progChanged?new Date().toISOString():items[idx].lastEpDate,tokuFranchise:tokuFormFr||null,tokuSubcat:tokuFormSubcat||null});
+      items[idx]=Object.assign({},items[idx],{title:title,year:document.getElementById('year-input').value.trim(),type:currentType,cartoon:currentCartoon,status:currentStatus,rating:currentRating,fav:currentFav,tags:currentTags.slice(),review:document.getElementById('review-input').value.trim(),personalNotes:document.getElementById('notes-input').value.trim(),quote:document.getElementById('quote-input').value.trim(),poster:posterDataUrl,posterFormat:posterFormat,director:dirIn.value.trim(),cast:castIn.value.trim(),watchedDate:document.getElementById('watched-date-input').value,favChar:document.getElementById('favchar-input').value.trim(),favCouple:document.getElementById('favcouple-input').value.trim(),progress:prog,lastEpDate:progChanged?new Date().toISOString():items[idx].lastEpDate,tokuFranchise:tokuFormFr||null,tokuSubcat:tokuFormSubcat||null});
+      savedItemId=editingId;
     }
     sv();toast('Modifié ✓');
   } else {
@@ -4549,8 +4590,22 @@ document.getElementById('add-btn').addEventListener('click',function(){
     // Saisie tardive : watchedDate renseignée + plus de 3 jours avant aujourd'hui
     var watchedDateVal=document.getElementById('watched-date-input').value;
     if(watchedDateVal){var daysDiff=Math.floor((Date.now()-new Date(watchedDateVal).getTime())/86400000);if(daysDiff>3&&autoTags.indexOf('Saisie tardive')===-1)autoTags.push('Saisie tardive');}
-    var it={id:Date.now()+Math.floor(Math.random()*999),title:title,originalTitle:(info.originalTitle&&info.originalTitle!==title)?info.originalTitle:'',year:document.getElementById('year-input').value.trim(),type:currentType,cartoon:currentCartoon,status:currentStatus,rating:currentRating,fav:currentFav,tags:autoTags,review:document.getElementById('review-input').value.trim(),personalNotes:document.getElementById('notes-input').value.trim(),quote:document.getElementById('quote-input').value.trim(),poster:posterDataUrl,director:dirIn.value.trim(),cast:castIn.value.trim(),watchedDate:watchedDateVal,favChar:document.getElementById('favchar-input').value.trim(),favCouple:document.getElementById('favcouple-input').value.trim(),addedAt:Date.now(),synopsis:info.synopsis||'',seriesStatus:info.seriesStatus||'',nbSeasons:info.nbSeasons||0,tmdbId:info.tmdbId||null,tmdbType:info.tmdbType||null,progress:prog,lastEpDate:prog?new Date().toISOString():null,runtime:info.runtime||0,epRuntime:info.epRuntime||0,tmdbRating:info.tmdbRating||0,rewatchCount:0,tokuFranchise:tokuFormFr||null,tokuSubcat:tokuFormSubcat||null,networkName:info.networkName||''};
+    var it={id:Date.now()+Math.floor(Math.random()*999),title:title,originalTitle:(info.originalTitle&&info.originalTitle!==title)?info.originalTitle:'',year:document.getElementById('year-input').value.trim(),type:currentType,cartoon:currentCartoon,status:currentStatus,rating:currentRating,fav:currentFav,tags:autoTags,review:document.getElementById('review-input').value.trim(),personalNotes:document.getElementById('notes-input').value.trim(),quote:document.getElementById('quote-input').value.trim(),poster:posterDataUrl,posterFormat:posterFormat,director:dirIn.value.trim(),cast:castIn.value.trim(),watchedDate:watchedDateVal,favChar:document.getElementById('favchar-input').value.trim(),favCouple:document.getElementById('favcouple-input').value.trim(),addedAt:Date.now(),synopsis:info.synopsis||'',seriesStatus:info.seriesStatus||'',nbSeasons:info.nbSeasons||0,tmdbId:info.tmdbId||null,tmdbType:info.tmdbType||null,progress:prog,lastEpDate:prog?new Date().toISOString():null,runtime:info.runtime||0,epRuntime:info.epRuntime||0,tmdbRating:info.tmdbRating||0,rewatchCount:0,hasLocalVideo:false,tokuFranchise:tokuFormFr||null,tokuSubcat:tokuFormSubcat||null,networkName:info.networkName||''};
     items.unshift(it);sv();sfx.add();if(currentRating===5)confetti();if(currentStatus==='termine')showVuStamp();buildParticles();toast('Ajouté ✓');
+    savedItemId=it.id;
+  }
+  // Extrait vidéo perso : attaché/retiré après coup une fois l'id définitif connu — un
+  // nouvel ajout en a besoin tout de suite (Date.now()+alea), une édition réutilise le sien.
+  if(savedItemId!=null&&vFile){
+    saveLocalVideo(savedItemId,null,null,vFile).then(function(){
+      var it2=items.find(function(i){return i.id===savedItemId;});
+      if(it2){it2.hasLocalVideo=true;sv();renderAll();}
+    }).catch(function(){toast('Erreur lors de l\'import de la vidéo — fichier trop volumineux ?');});
+  } else if(savedItemId!=null&&vRemove){
+    deleteLocalVideo(savedItemId,null,null).then(function(){
+      var it2=items.find(function(i){return i.id===savedItemId;});
+      if(it2){it2.hasLocalVideo=false;sv();renderAll();}
+    });
   }
   resetForm();renderAll();
 });
@@ -4742,6 +4797,7 @@ function renderLibrary(){
       +'<span class="type-badge '+item.type+(item.cartoon?' cartoon':'')+'">'+(item.cartoon?'🎨 ':'')+(item.type==='film'?'Scène':'Film')+'</span>'
       +(item.fav?'<span class="fav-badge">❤️</span>':'')
       +'<button class="landscape-toggle'+(item.posterFormat==='landscape'?' active':'')+'" data-landscape="'+item.id+'" title="'+(item.posterFormat==='landscape'?'Repasser en portrait':'Passer en paysage 16:9')+'">🖥️</button>'
+      +(item.hasLocalVideo?'<button class="vid-quick-play" data-vidquick="'+item.id+'" title="Lire l\'extrait vidéo perso">🎥</button>':'')
       +'<button class="rewatch-toggle'+(item.toRewatch?' active':'')+'" data-rewatch="'+item.id+'" title="'+(item.toRewatch?'Sur la liste à revoir':'Marquer à revoir')+'">🔁</button>'
       +(item.personalNotes?'<span class="note-badge" title="">📌<span class="note-tip">'+esc(item.personalNotes)+'</span></span>':'')
       +'<span class="status-badge '+(item.status||'termine')+'">'+(item.status==='a_voir'?'À voir':item.status==='en_cours'?'En cours':item.status==='en_pause'?'En pause':'Vu')+'</span>'
@@ -4755,8 +4811,9 @@ function renderLibrary(){
       +cardTags
       +prog+'</div></div>';
   }).join('');
-  grid.querySelectorAll('.movie-card').forEach(function(c){c.addEventListener('click',function(e){if(e.target.closest('.delete-btn')||e.target.closest('.rewatch-toggle')||e.target.closest('.landscape-toggle')||e.target.closest('.card-play')||e.target.closest('.card-tag-chip'))return;openModal(parseInt(c.dataset.id));});});
+  grid.querySelectorAll('.movie-card').forEach(function(c){c.addEventListener('click',function(e){if(e.target.closest('.delete-btn')||e.target.closest('.rewatch-toggle')||e.target.closest('.landscape-toggle')||e.target.closest('.vid-quick-play')||e.target.closest('.card-play')||e.target.closest('.card-tag-chip'))return;openModal(parseInt(c.dataset.id));});});
   grid.querySelectorAll('[data-cardplay]').forEach(function(b){b.addEventListener('click',function(e){e.stopPropagation();window.playTrailerById(parseInt(b.dataset.cardplay));});});
+  grid.querySelectorAll('[data-vidquick]').forEach(function(b){b.addEventListener('click',function(e){e.stopPropagation();playLocalFilmVideo(parseInt(b.dataset.vidquick));});});
   grid.querySelectorAll('[data-del]').forEach(function(b){b.addEventListener('click',function(e){e.stopPropagation();deleteItem(parseInt(b.dataset.del));});});
   grid.querySelectorAll('[data-rewatch]').forEach(function(b){b.addEventListener('click',function(e){e.stopPropagation();toggleRewatch(parseInt(b.dataset.rewatch));});});
   grid.querySelectorAll('[data-landscape]').forEach(function(b){b.addEventListener('click',function(e){e.stopPropagation();toggleLandscape(parseInt(b.dataset.landscape));});});
@@ -5297,14 +5354,14 @@ function openModal(id){
     progressBlock='<div class="progress-modal-wrap">'+pauseAlert+'<h4>'+headerTxt+'</h4><div class="prog-inputs-row"><span style="font-size:.8rem;color:var(--muted)">Mettre à jour :</span> <span style="font-size:.78rem;color:var(--muted)">S</span><input type="number" id="m-prog-s" value="'+prog.s+'" min="1" style="width:60px"><span style="font-size:.78rem;color:var(--muted)">E</span><input type="number" id="m-prog-e" value="'+prog.e+'" min="1" style="width:60px"><div class="prog-bar-full"><div class="prog-bar-fill" style="width:'+pct+'%"></div></div><button onclick="saveProgress('+id+')" style="font-family:\'Fredoka\',sans-serif;font-weight:700;font-size:.8rem;padding:6px 14px;border-radius:999px;border:none;background:var(--mint);color:#04473a;cursor:pointer;">OK</button></div>'+(isPaused?'<button onclick="resumeFromPause('+id+')" style="margin-top:8px;font-family:\'Fredoka\',sans-serif;font-weight:700;font-size:.8rem;padding:7px 16px;border-radius:999px;border:none;background:var(--blue);color:white;cursor:pointer;">▶️ Reprendre la série</button>':'')+'</div>';
   }
   var nextEpBlock=''; // pas de compte à rebours « prochain épisode » : contenus plats sans saisons
-  var filmVideoBlock='';
-  if(false&&item.type==='film'){ // bloc « Vidéo du film importée » retiré à la demande
-    filmVideoBlock='<div class="film-video-block"><label>🎬 Vidéo du film (importée depuis ton PC)</label>'
-      +(item.hasLocalVideo
-        ?'<button class="ep-btn-small" style="border-color:var(--mint);color:var(--mint);" onclick="playLocalFilmVideo('+id+')">▶ Regarder le film</button> <button class="ep-btn-small" style="border-color:var(--raspberry);color:var(--raspberry);" onclick="removeLocalFilmVideo('+id+')">🗑 Retirer</button>'
-        :'<button class="ep-btn-small" onclick="document.getElementById(\'film-video-input-'+id+'\').click();">📁 Importer le film depuis mon PC</button><input type="file" id="film-video-input-'+id+'" accept="video/*" style="display:none" onchange="handleFilmVideoSelected('+id+',this)">')
-      +'</div>';
-  }
+  // Extrait vidéo perso importé depuis ton PC (stocké en local via IndexedDB) — dispo
+  // sur toute fiche (Scène ou Film), pas seulement à l'ajout/l'édition : pratique pour
+  // en attacher un après coup, ou juste le relire/le retirer. Inspiré de mon-vr-tracker.html.
+  var filmVideoBlock='<div class="film-video-block"><label>🎥 Extrait vidéo perso (importé depuis ton PC)</label>'
+    +(item.hasLocalVideo
+      ?'<button class="ep-btn-small" style="border-color:var(--mint);color:var(--mint);" onclick="playLocalFilmVideo('+id+')">▶ Regarder l\'extrait</button> <button class="ep-btn-small" style="border-color:var(--raspberry);color:var(--raspberry);" onclick="removeLocalFilmVideo('+id+')">🗑 Retirer</button>'
+      :'<button class="ep-btn-small" onclick="document.getElementById(\'film-video-input-'+id+'\').click();">📁 Importer un extrait depuis mon PC</button><input type="file" id="film-video-input-'+id+'" accept="video/*" style="display:none" onchange="handleFilmVideoSelected('+id+',this)">')
+    +'</div>';
   var notesBlock=item.personalNotes?'<div class="modal-personal-note"><span class="note-lbl">📌 Notes perso</span><p>'+esc(item.personalNotes)+'</p></div>':'';
   // Comparaison note perso vs public TMDB
   var compareBlock='';
