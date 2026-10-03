@@ -1229,6 +1229,21 @@ body.dark .fy-actors-head{color:#C9A8FF;}
 .actor-chip button{background:none;border:none;color:var(--muted2);cursor:pointer;font-size:.8rem;padding:2px 4px;line-height:1;}
 .actor-chip button:hover{color:var(--raspberry);}
 
+/* ── 🎭 Onglet Actrices (liste perso + cœur + note) ── */
+.actress-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px;}
+.actress-card{background:var(--card-bg);border-radius:18px;overflow:hidden;box-shadow:0 5px 0 var(--shadow);position:relative;cursor:pointer;transition:transform .2s;padding-bottom:10px;}
+.actress-card:hover{transform:translateY(-4px);}
+.actress-card img{width:100%;aspect-ratio:3/4;object-fit:cover;display:block;}
+.actr-ph{width:100%;aspect-ratio:3/4;display:flex;align-items:center;justify-content:center;font-size:2.4rem;background:linear-gradient(135deg,rgba(91,58,140,.14),rgba(255,77,109,.1));}
+.actr-heart{position:absolute;top:8px;right:8px;border:none;background:rgba(10,6,20,.5);width:30px;height:30px;border-radius:50%;font-size:.95rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .15s;}
+.actr-heart:hover{transform:scale(1.12);}
+.actr-heart.on{background:rgba(255,77,109,.9);}
+.actr-del{position:absolute;top:8px;left:8px;border:none;background:rgba(10,6,20,.5);color:#fff;width:26px;height:26px;border-radius:50%;font-size:.78rem;cursor:pointer;opacity:0;transition:opacity .15s;z-index:2;}
+.actress-card:hover .actr-del{opacity:1;}
+.actr-name{font-family:'Fredoka',sans-serif;font-weight:700;font-size:.86rem;padding:8px 10px 2px;text-align:center;color:var(--ink);}
+.actr-stars{display:flex;justify-content:center;gap:2px;font-size:1rem;padding-bottom:2px;}
+.actr-star{cursor:pointer;}
+
 .nav-badge{display:inline-block;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:var(--raspberry);color:#fff;font-size:.62rem;font-weight:700;line-height:16px;text-align:center;margin-left:5px;vertical-align:middle;}
 .alert-intro{color:var(--muted2);font-size:.85rem;margin-bottom:14px;grid-column:1/-1;}
 .alert-badges{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;}
@@ -2189,6 +2204,7 @@ body.dark .subr-details summary{color:#C9A8FF;}
       <button class="nav-btn" data-view="alertes">🔔 Alertes<span id="alert-nav-badge" class="nav-badge" style="display:none"></span></button>
       <button class="nav-btn" data-view="actus">📰 Actus</button>
       <button class="nav-btn" data-view="trending">🔥 Tendances</button>
+      <button class="nav-btn" data-view="actresses">🎭 Actrices</button>
       <button class="nav-btn" data-view="catalog">🗂️ Catalogue</button>
       <button class="nav-btn" data-view="books">📖 Livres</button>
     </nav>
@@ -2733,6 +2749,21 @@ body.dark .subr-details summary{color:#C9A8FF;}
     <button class="trend-tab2" data-ttype="tv">📺 Séries</button>
   </div>
   <div id="trending-grid"></div>
+</div>
+
+<div id="view-actresses" style="display:none">
+  <div class="section-title"><h2>🎭 Actrices</h2><div class="deco"></div></div>
+  <p style="color:var(--muted2);font-size:.9rem;margin-bottom:14px;">Ta liste perso — distincte de tes favoris ❤️ classiques sur les films/scènes. Ajoute une actrice (ou un acteur), mets-lui un cœur si c'est un coup de cœur, et note-la sur 5.</p>
+  <div class="fy-actor-search-wrap" style="max-width:420px;margin-bottom:16px;">
+    <input type="text" id="actress-tab-input" placeholder="🔍 Cherche une actrice (ou un acteur)…" autocomplete="off">
+    <div class="search-results" id="actress-tab-results"></div>
+  </div>
+  <div class="cat-tabs cat-tabs-2" style="margin-bottom:14px;">
+    <button class="cat-tab2 active" data-actrfilter="all">Toutes</button>
+    <button class="cat-tab2" data-actrfilter="liked">❤️ Coups de cœur</button>
+    <button class="cat-tab2" data-actrfilter="rated">⭐ Notées</button>
+  </div>
+  <div id="actress-tab-grid" class="actress-grid"></div>
 </div>
 
 <div id="view-catalog" style="display:none">
@@ -4186,7 +4217,7 @@ document.addEventListener('click',function(e){
 document.addEventListener('mouseover',function(e){var c=e.target.closest('.movie-card,.wish-card,.nav-btn');if(c&&c!==window._lastHover){window._lastHover=c;sfx.hover();}},true);
 
 var navBtns=document.querySelectorAll('.nav-btn');
-var views={pass:'view-pass',foryou:'view-foryou',feed:'view-feed',library:'view-library',calendar:'view-calendar','top-custom':'view-top-custom',sagas:'view-sagas',toku:'view-toku',marathon:'view-marathon',planning:'view-planning',fun:'view-fun',stats:'view-stats',badges:'view-badges',attentes:'view-attentes',alertes:'view-alertes',actus:'view-actus',trending:'view-trending',books:'view-books',catalog:'view-catalog'};
+var views={pass:'view-pass',foryou:'view-foryou',feed:'view-feed',library:'view-library',calendar:'view-calendar','top-custom':'view-top-custom',sagas:'view-sagas',toku:'view-toku',marathon:'view-marathon',planning:'view-planning',fun:'view-fun',stats:'view-stats',badges:'view-badges',attentes:'view-attentes',alertes:'view-alertes',actus:'view-actus',trending:'view-trending',actresses:'view-actresses',books:'view-books',catalog:'view-catalog'};
 navBtns.forEach(function(b){b.addEventListener('click',function(){
   navBtns.forEach(function(x){x.classList.remove('active');});b.classList.add('active');
   sfx.nav();
@@ -4207,6 +4238,7 @@ navBtns.forEach(function(b){b.addEventListener('click',function(){
   if(b.dataset.view==='calendar')renderCalendar();
   if(b.dataset.view==='actus')renderPinnedSearches();
   if(b.dataset.view==='trending')renderTrending();
+  if(b.dataset.view==='actresses')renderActressTab();
   if(b.dataset.view==='catalog')initCatalog();
   if(b.dataset.view==='fun'){try{renderGamesHub();}catch(_){}if(document.getElementById('fun-classic').style.display!=='none')initFun();}
   if(b.dataset.view==='stats')renderWrapped();
@@ -4696,7 +4728,7 @@ function renderLibrary(){
       +'</div>';
     return '<div class="movie-card" data-id="'+item.id+'" style="--i:'+Math.min(idx,24)+'">'
       +'<div class="poster-wrap'+(item.posterFormat==='landscape'?' landscape':'')+'">'
-      +(item.poster?'<img src="'+item.poster+'" alt="">':'<div class="placeholder">'+(item.type==='serie'?'🎬':'🎥')+'</div>')
+      +'<img src="'+(item.poster||genPosterUrl(item.title,item.type))+'" alt="">'
       +'<span class="type-badge '+item.type+(item.cartoon?' cartoon':'')+'">'+(item.cartoon?'🎨 ':'')+(item.type==='film'?'Scène':'Film')+'</span>'
       +(item.fav?'<span class="fav-badge">❤️</span>':'')
       +(item.type==='film'?'<button class="landscape-toggle'+(item.posterFormat==='landscape'?' active':'')+'" data-landscape="'+item.id+'" title="'+(item.posterFormat==='landscape'?'Repasser en portrait':'Passer en paysage 16:9')+'">🖥️</button>':'')
@@ -4778,7 +4810,7 @@ function fetchActorSuggestions(name){
 function tagpageMineCardHtml(item){
   return '<div class="movie-card" data-id="'+item.id+'">'
     +'<div class="poster-wrap">'
-    +(item.poster?'<img src="'+item.poster+'" alt="">':'<div class="placeholder">'+(item.type==='serie'?'🎬':'🎥')+'</div>')
+    +'<img src="'+(item.poster||genPosterUrl(item.title,item.type))+'" alt="">'
     +'<span class="type-badge '+item.type+'">'+(item.type==='film'?'Scène':'Film')+'</span>'
     +(item.fav?'<span class="fav-badge">❤️</span>':'')
     +'</div>'
@@ -4790,11 +4822,12 @@ function tagpageApiCardHtml(r){
   var mt=r.media_type;
   var t=mt==='movie'?(r.title||r.name):(r.name||r.title);
   var y=((mt==='movie'?r.release_date:r.first_air_date)||'').slice(0,4);
-  var poster=r.poster_path?''+r.poster_path:'';
+  if(!r.poster_path)r.poster_path=genPosterUrl(t,mt);
+  var poster=''+r.poster_path;
   var key=mt+'_'+r.id;
   var tvPlaceholder=mt==='tv'?'<div data-tvstatus="'+key+'"></div>':'';
   return '<div class="reco-card trend-card-wrap" data-ckey="'+key+'">'
-    +(poster?'<img src="'+poster+'" alt="" loading="lazy">':'<div style="aspect-ratio:2/3;display:flex;align-items:center;justify-content:center;font-size:1.6rem;background:var(--input-bg)">'+(mt==='tv'?'🎬':'🎥')+'</div>')
+    +'<img src="'+poster+'" alt="" loading="lazy">'
     +'<div class="rc-body"><div class="rc-title">'+esc(t)+'</div><div class="rc-meta">'+(y||'—')+(r.vote_average?' · ⭐'+r.vote_average.toFixed(1):'')+'</div>'
     +tvPlaceholder
     +'<div class="trend-actions"><button class="trend-add-avoir" data-cwish="'+key+'">📌 M\'intéresse</button></div></div></div>';
@@ -4934,7 +4967,7 @@ var PRESET_GENRES_LOCKED=['Horreur','Fantastique','Science-fiction','Jeux vidéo
 function secretCardHtml(item){
   return '<div class="movie-card" data-id="'+item.id+'">'
     +'<div class="poster-wrap'+(item.posterFormat==='landscape'?' landscape':'')+'">'
-    +(item.poster?'<img src="'+item.poster+'" alt="">':'<div class="placeholder">🎬</div>')
+    +'<img src="'+(item.poster||genPosterUrl(item.title,item.type))+'" alt="">'
     +'</div><div class="info"><h3>'+esc(item.title)+'</h3><div class="meta">'+(item.year||'—')+'</div></div></div>';
 }
 function renderSecretGrid(){
@@ -5360,12 +5393,52 @@ function showModalPoster(url){
   img.onload=function(){fitModalHeroOrientation(img);};
   img.src=url;img.style.display='block';if(ph)ph.style.display='none';
 }
+/* ====== 🖼️ Affiche générée (quand aucune vraie affiche n'existe nulle part) ======
+   Dernier recours seulement, après avoir vraiment cherché (fiche détail + recherche par
+   titre sur ThePornDB/Eporner) : un visuel dégradé avec le titre, généré localement en
+   canvas (pas de réseau, jamais vide/cassé). Format 2:3, assorti aux cadres d'affiche
+   utilisés partout ailleurs sur le site. */
+function genPosterUrl(title,kind){
+  try{
+    title=String(title||'Sans titre');
+    var seed=0;for(var i=0;i<title.length;i++)seed=(seed*31+title.charCodeAt(i))>>>0;
+    var hues=[345,18,275,195,155,42,320];
+    var h1=hues[seed%hues.length],h2=hues[(seed>>>4)%hues.length];if(h1===h2)h2=(h2+120)%360;
+    var c=document.createElement('canvas');c.width=400;c.height=600;
+    var ctx=c.getContext('2d');
+    var g=ctx.createLinearGradient(0,0,400,600);
+    g.addColorStop(0,'hsl('+h1+',52%,24%)');g.addColorStop(1,'hsl('+h2+',48%,11%)');
+    ctx.fillStyle=g;ctx.fillRect(0,0,400,600);
+    ctx.globalAlpha=.10;ctx.fillStyle='#fff';
+    ctx.beginPath();ctx.moveTo(0,600);ctx.lineTo(400,600);ctx.lineTo(400,340);ctx.lineTo(0,520);ctx.closePath();ctx.fill();
+    ctx.globalAlpha=1;
+    ctx.fillStyle='rgba(255,255,255,.22)';ctx.font='700 170px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText((kind==='tv'||kind==='serie')?'🎬':'🎥',200,250);
+    ctx.textBaseline='alphabetic';
+    ctx.fillStyle='#fff';ctx.font='700 30px Fredoka, sans-serif';ctx.textAlign='center';
+    var words=title.split(/\s+/),lines=[],cur='';
+    words.forEach(function(w){var t=cur?cur+' '+w:w;if(ctx.measureText(t).width>340&&cur){lines.push(cur);cur=w;}else cur=t;});
+    if(cur)lines.push(cur);
+    if(lines.length>4){lines=lines.slice(0,4);lines[3]=lines[3].replace(/.{0,3}$/,'…');}
+    var ly=600-28-(lines.length-1)*36;
+    lines.forEach(function(l){ctx.fillText(l,200,ly);ly+=36;});
+    return c.toDataURL('image/jpeg',.86);
+  }catch(e){return '';}
+}
 function fixModalMedia(item,id){
   if(document.getElementById('modal-hero-img')&&(item.poster||item.banner))fitModalHeroOrientation(document.getElementById('modal-hero-img'));
   if(!item.tmdbId||!item.tmdbType){
     // Pas d'id ThePornDB du tout (fiche ajoutée à la main) : seul le repli « chercher ailleurs »
-    // par titre est possible, pour l'affiche comme pour la vidéo.
-    if(!item.poster&&!item.banner&&window.scFindPoster)scFindPoster(item.title).then(function(u){if(u&&_modalOpenId===id){item.poster=u;sv();showModalPoster(u);}});
+    // par titre est possible, pour l'affiche comme pour la vidéo — et si ça non plus ne donne
+    // rien, on génère nous-même une affiche plutôt que de laisser la fiche sans rien.
+    if(!item.poster&&!item.banner){
+      if(window.scFindPoster)scFindPoster(item.title).then(function(u){
+        if(_modalOpenId!==id)return;
+        if(u){item.poster=u;sv();showModalPoster(u);}
+        else if(!item.poster&&!item.banner){var g=genPosterUrl(item.title,item.type);if(g){item.poster=g;sv();showModalPoster(g);}}
+      });
+      else{var g0=genPosterUrl(item.title,item.type);if(g0){item.poster=g0;sv();showModalPoster(g0);}}
+    }
     return;
   }
   var mt=item.tmdbType==='tv'?'tv':'movie';
@@ -5380,8 +5453,16 @@ function fixModalMedia(item,id){
       else{vidWrap.innerHTML='<a href="'+esc(d._vidUrl)+'" target="_blank" rel="noopener">▶ Regarder la vidéo ↗</a>';}
       vidWrap.classList.add('show');
     }
-    // Toujours rien du tout (ni affiche ni vidéo) : dernier recours, on cherche ailleurs par titre.
-    if(!item.poster&&!item.banner&&!(d&&d.poster_path)&&window.scFindPoster)scFindPoster(item.title).then(function(u){if(u&&_modalOpenId===id){item.poster=u;sv();showModalPoster(u);}});
+    // Toujours rien du tout : dernier recours, on cherche ailleurs par titre, et si ça ne
+    // donne toujours rien, on génère nous-même une affiche (jamais de fiche sans rien).
+    if(!item.poster&&!item.banner&&!(d&&d.poster_path)){
+      if(window.scFindPoster)scFindPoster(item.title).then(function(u){
+        if(_modalOpenId!==id)return;
+        if(u){item.poster=u;sv();showModalPoster(u);}
+        else if(!item.poster&&!item.banner){var g=genPosterUrl(item.title,item.type);if(g){item.poster=g;sv();showModalPoster(g);}}
+      });
+      else{var g1=genPosterUrl(item.title,item.type);if(g1){item.poster=g1;sv();showModalPoster(g1);}}
+    }
     if((!d||!d._vidUrl)&&window.scFindVideo)scFindVideo(item.title).then(function(v){if(v&&v.u&&_modalOpenId===id&&vidWrap&&!vidWrap.classList.contains('show')){
       if(v.embed){vidWrap.innerHTML='<iframe src="'+esc(v.u)+'" allow="autoplay; encrypted-media; fullscreen" allowfullscreen title="Vidéo"></iframe>';}
       else{vidWrap.innerHTML='<a href="'+esc(v.u)+'" target="_blank" rel="noopener">▶ Regarder la vidéo ↗</a>';}
@@ -6200,8 +6281,9 @@ function openWishModal(id){
         +['confirmee','non_confirmee'].map(function(v){return '<button type="button" class="cs-'+v+(cs===v?' active':'')+'" data-cs="'+v+'">'+confirmLbl[v]+'</button>';}).join('')
       +'</div>';
   }
+  if(!w.poster){w.poster=genPosterUrl(w.title,w.tmdbType);try{svW();}catch(_){}}
   var html='<div class="bm-hero">'
-    +'<div class="bm-cover" '+(w.poster?'style="background-image:url('+w.poster+')"':'')+'>'+(w.poster?'':'🎬')+'</div>'
+    +'<div class="bm-cover" style="background-image:url('+w.poster+')"></div>'
     +'<div class="bm-meta"><h2>'+esc(w.title)+'</h2>'
     +'<div class="bm-author">'+(w.year||'?')+(w.season?(' · Saison '+w.season):'')+(w.weekly&&w.epLabel?(' · '+esc(w.epLabel)):'')+epFlagBadges+'</div>'
     +'<div class="book-badges" style="margin-top:11px"><span class="bbadge">'+typeLbl+'</span>'
@@ -6414,7 +6496,7 @@ var tokuViewFr='';
 function tokuCardHtml(item){
   return '<div class="movie-card" data-id="'+item.id+'">'
     +'<div class="poster-wrap">'
-    +(item.poster?'<img src="'+item.poster+'" alt="">':'<div class="placeholder">'+(item.type==='serie'?'🎬':'🎥')+'</div>')
+    +'<img src="'+(item.poster||genPosterUrl(item.title,item.type))+'" alt="">'
     +'<span class="type-badge '+item.type+'">'+(item.type==='film'?'Scène':'Film')+'</span>'
     +(item.fav?'<span class="fav-badge">❤️</span>':'')
     +'<span class="status-badge '+(item.status||'termine')+'">'+(item.status==='a_voir'?'À voir':item.status==='en_cours'?'En cours':item.status==='en_pause'?'En pause':'Vu')+'</span>'
@@ -7912,7 +7994,7 @@ function renderWishGrid(){
       confirmMini='<div class="wish-channel-row"><span class="confirm-badge '+csv+'">'+csLbl[csv]+'</span></div>';
     }
     return '<div class="wish-card'+(imminent?' imminent':'')+'" style="position:relative;cursor:pointer" data-wid="'+w.id+'">'
-    +(w.poster?'<img class="wish-poster" src="'+w.poster+'" alt="">':'<div class="wish-no-poster">'+(w.tmdbType==='tv'?'📺':w.tmdbType==='match'?'⚽':'🎬')+'</div>')
+    +'<img class="wish-poster" src="'+(w.poster||genPosterUrl(w.title,w.tmdbType))+'" alt="">'
     +'<span class="wish-badge-type">'+(w.tmdbType==='tv'?'Film':w.tmdbType==='match'?'⚽ Match':'Scène')+'</span>'
     +'<div class="wish-info"><h3>'+esc(w.title)+'</h3><div class="wm">'+(w.year||'?')+(w.season?(' · 📺 Saison '+w.season):'')+(w.weekly&&w.epLabel?(' · '+w.epLabel):'')+epFlags+'</div>'
     +confirmMini
@@ -8306,11 +8388,12 @@ function drawForYou(list){
     var mt=r.media_type;
     var t=mt==='movie'?(r.title||r.name):(r.name||r.title);
     var y=((mt==='movie'?r.release_date:r.first_air_date)||'').slice(0,4);
-    var poster=r.poster_path?''+r.poster_path:'';
+    if(!r.poster_path)r.poster_path=genPosterUrl(t,mt);
+    var poster=''+r.poster_path;
     var tvPlaceholder=mt==='tv'?'<div data-tvstatus="'+mt+'_'+r.id+'"></div>':'';
     var typeBadge='<span class="cat-type-badge '+(mt==='tv'?'cat-type-tv':'cat-type-movie')+'">'+(mt==='tv'?'🎬 Film':'🎥 Scène')+'</span>';
     return '<div class="reco-card trend-card-wrap cat-foryou-card" data-ckey="'+mt+'_'+r.id+'">'
-      +(poster?'<img src="'+poster+'" alt="" loading="lazy">':'<div style="aspect-ratio:2/3;display:flex;align-items:center;justify-content:center;font-size:1.4rem;background:var(--input-bg)">'+(mt==='tv'?'🎬':'🎥')+'</div>')
+      +'<img src="'+poster+'" alt="" loading="lazy">'
       +'<div class="rc-body">'+typeBadge+'<div class="rc-title">'+esc(t)+'</div><div class="rc-meta">'+(y||'—')+'</div>'+tvPlaceholder+(r._why?'<div class="pf-why">'+esc(r._why)+'</div>':'')+buildSimilarityBadge(r._score)+'</div></div>';
   }).join('');
   grid.querySelectorAll('.trend-card-wrap').forEach(function(card){card.addEventListener('click',function(){openCatModal(card.dataset.ckey);});});
@@ -8323,6 +8406,7 @@ function onActorsChanged(){
   _platformCache={};
   var fy=document.getElementById('cat-sub-foryou');if(fy&&fy.style.display!=='none')loadForYou();
   var ac=document.getElementById('cat-sub-actors');if(ac&&ac.style.display!=='none')loadActorProjects();
+  var av=document.getElementById('view-actresses');if(av&&av.style.display!=='none'&&typeof renderActressTab==='function')renderActressTab();
 }
 function actorChipsHtml(list,kind){
   if(!list.length)return '<div style="color:var(--muted2);font-size:.82rem">Personne pour l\'instant.</div>';
@@ -8390,6 +8474,50 @@ bindActorSearch('month-actor-input','month-actor-results',function(a){
   if(list.some(function(x){return x.id===a.id;})){toast('Déjà dans tes acteurs du mois !');return;}
   list.push(a);svMonthActors();toast(a.name+' est ton acteur/actrice du mois 🌟');onActorsChanged();
 });
+
+/* ====== 🎭 Onglet « Actrices » : ta liste perso (distincte des favoris ❤️ classiques sur
+   les films/scènes), avec un cœur et une note /5 par actrice — toujours la même liste que
+   « Mes acteurs/actrices préféré·es » (favActors/cineFavActors) : ajouter ici ou là-bas,
+   c'est la même liste, juste deux façons d'y accéder. ====== */
+var actressFilter='all';
+function toggleActorLike(id){
+  var a=favActors.find(function(x){return x.id===id;});if(!a)return;
+  a.liked=!a.liked;svFavActors();renderActressTab();
+}
+function setActorNote(id,n){
+  var a=favActors.find(function(x){return x.id===id;});if(!a)return;
+  a.note=(a.note===n?0:n);svFavActors();renderActressTab();
+}
+function actressCardHtml(a){
+  var stars=[1,2,3,4,5].map(function(n){return '<span data-anote="'+a.id+':'+n+'" class="actr-star">'+(n<=(a.note||0)?'⭐':'☆')+'</span>';}).join('');
+  return '<div class="actress-card" data-aview="'+esc(a.name)+'">'
+    +'<button class="actr-del" data-adel="'+a.id+'" title="Retirer de la liste">✕</button>'
+    +(a.photo?'<img src="'+esc(a.photo)+'" alt="">':'<div class="actr-ph">🎭</div>')
+    +'<button class="actr-heart'+(a.liked?' on':'')+'" data-aheart="'+a.id+'" title="'+(a.liked?'Retirer le coup de cœur':'Coup de cœur')+'">'+(a.liked?'❤️':'🤍')+'</button>'
+    +'<div class="actr-name">'+esc(a.name)+'</div>'
+    +'<div class="actr-stars">'+stars+'</div>'
+    +'</div>';
+}
+function renderActressTab(){
+  var grid=document.getElementById('actress-tab-grid');if(!grid)return;
+  var list=favActors.slice();
+  if(actressFilter==='liked')list=list.filter(function(a){return a.liked;});
+  else if(actressFilter==='rated')list=list.filter(function(a){return a.note>0;});
+  if(!list.length){
+    grid.innerHTML='<div class="empty-state" style="grid-column:1/-1"><span class="emoji">🎭</span><h3>'+(favActors.length?'Rien ici avec ce filtre.':'Pas encore d\'actrice ajoutée.')+'</h3><p>Cherche un nom ci-dessus pour l\'ajouter à ta liste.</p></div>';
+    return;
+  }
+  grid.innerHTML=list.map(actressCardHtml).join('');
+  grid.querySelectorAll('[data-aheart]').forEach(function(b){b.addEventListener('click',function(e){e.stopPropagation();toggleActorLike(parseInt(b.dataset.aheart));});});
+  grid.querySelectorAll('[data-anote]').forEach(function(b){b.addEventListener('click',function(e){e.stopPropagation();var p=b.dataset.anote.split(':');setActorNote(parseInt(p[0]),parseInt(p[1]));});});
+  grid.querySelectorAll('[data-adel]').forEach(function(b){b.addEventListener('click',function(e){e.stopPropagation();var id=parseInt(b.dataset.adel);favActors=favActors.filter(function(x){return x.id!==id;});svFavActors();onActorsChanged();});});
+  grid.querySelectorAll('[data-aview]').forEach(function(c){c.addEventListener('click',function(){openEntityPage({type:'actor',value:c.dataset.aview});});});
+}
+document.querySelectorAll('#view-actresses .cat-tab2[data-actrfilter]').forEach(function(b){b.addEventListener('click',function(){
+  document.querySelectorAll('#view-actresses .cat-tab2[data-actrfilter]').forEach(function(x){x.classList.remove('active');});
+  b.classList.add('active');actressFilter=b.dataset.actrfilter;renderActressTab();
+});});
+bindActorSearch('actress-tab-input','actress-tab-results',function(a){addFavActor(a);});
 
 /* ====== 🏆 CLASSEMENT DES INTERPRÈTES "LES PLUS COLLECTIONNÉES" ======
    Un vrai profil fan par interprète, construit depuis TA collection : nombre de
@@ -8509,7 +8637,7 @@ function renderRecoBlock(box,refTitle,recs){
   var owned=getOwnedCatKeys();
   box.innerHTML='<div class="reco-section"><h4>🎯 Si t\'as aimé «&nbsp;'+esc(refTitle)+'&nbsp;»</h4><div class="rs-sub">Score calculé sur les genres, le casting, le réalisateur, la note et l\'époque — clique sur une vignette pour voir sa fiche</div><div class="reco-grid">'+recs.map(function(r){
     var t=r.title||r.name;var y=(r.release_date||r.first_air_date||'').slice(0,4);var key=r.media_type+'_'+r.id;var already=owned[key];
-    return'<div class="reco-card trend-card-wrap" data-ckey="'+key+'">'+(r.poster_path?'<img src="'+r.poster_path+'" alt="">':'<div style="aspect-ratio:2/3;display:flex;align-items:center;justify-content:center;font-size:1.6rem;background:var(--input-bg)">🎬</div>')+'<div class="rc-body"><div class="rc-title">'+esc(t)+'</div><div class="rc-meta">'+(y||'—')+(r.vote_average?' · ⭐'+r.vote_average.toFixed(1):'')+'</div>'+buildSimilarityBadge(r._score)+(already?'<div class="trend-owned">📌 Déjà chez toi</div>':'<div class="trend-actions"><button class="trend-add-avoir" data-cwish="'+key+'">📌 M\'intéresse</button></div>')+'</div></div>';
+    if(!r.poster_path)r.poster_path=genPosterUrl(t,r.media_type);return'<div class="reco-card trend-card-wrap" data-ckey="'+key+'">'+'<img src="'+r.poster_path+'" alt="">'+'<div class="rc-body"><div class="rc-title">'+esc(t)+'</div><div class="rc-meta">'+(y||'—')+(r.vote_average?' · ⭐'+r.vote_average.toFixed(1):'')+'</div>'+buildSimilarityBadge(r._score)+(already?'<div class="trend-owned">📌 Déjà chez toi</div>':'<div class="trend-actions"><button class="trend-add-avoir" data-cwish="'+key+'">📌 M\'intéresse</button></div>')+'</div></div>';
   }).join('')+'</div></div>';
   box.querySelectorAll('.trend-card-wrap').forEach(function(card){card.addEventListener('click',function(e){
     if(e.target.closest('[data-cwish]'))return;
@@ -8681,7 +8809,8 @@ function drawAlerts(list,scored){
     var mt=r.media_type;
     var t=mt==='movie'?(r.title||r.name):(r.name||r.title);
     var dateVal=(mt==='movie'?r.release_date:r.first_air_date)||'';
-    var poster=r.poster_path?''+r.poster_path:'';
+    if(!r.poster_path)r.poster_path=genPosterUrl(t,mt);
+    var poster=''+r.poster_path;
     var key=mt+'_'+r.id;
     var isNew=!wasSeen[key];
     if(isNew){newCount++;alertSeenIds.push(key);}
@@ -8699,7 +8828,7 @@ function drawAlerts(list,scored){
     var simBadge=(scored&&typeof r._score==='number')?buildSimilarityBadge(r._score):'';
     var tvPlaceholder=mt==='tv'?'<div data-tvstatus="'+key+'"></div>':'';
     return '<div class="reco-card trend-card-wrap" data-ckey="'+key+'">'
-      +(poster?'<img src="'+poster+'" alt="" loading="lazy">':'<div style="aspect-ratio:2/3;display:flex;align-items:center;justify-content:center;font-size:1.8rem;background:var(--input-bg)">'+(mt==='tv'?'🎬':'🎥')+'</div>')
+      +'<img src="'+poster+'" alt="" loading="lazy">'
       +'<div class="rc-body">'+typeBadge+'<div class="rc-title">'+esc(t)+'</div><div class="rc-meta">'+(dateVal?new Date(dateVal).toLocaleDateString('fr-FR'):'—')+'</div>'
       +tvPlaceholder+'<div class="alert-badges">'+badges+'</div>'+simBadge
       +'<div class="trend-actions"><button class="trend-add-avoir" data-cwish="'+key+'">📌 M\'intéresse</button></div></div></div>';
@@ -9309,11 +9438,15 @@ function drawTrending(list){
     var t=mt==='movie'?(r.title||r.name):(r.name||r.title);
     var y=((mt==='movie'?r.release_date:r.first_air_date)||'').slice(0,4);
     var key=mt+'_'+r.id,isOwned=owned[key];
-    var poster=r.poster_path?''+r.poster_path:'';
+    // Toujours une affiche : la vraie si TMDB/ThePornDB/Eporner en a une, sinon on en génère
+    // une tout de suite (pas de cadre vide/cassé) — remplacée en douceur si une vraie affiche
+    // est retrouvée ailleurs juste après (voir l'enrichissement plus bas).
+    if(!r.poster_path)r.poster_path=genPosterUrl(t,mt);
+    var poster=''+r.poster_path;
     var rank=(trendSrc==='week'&&trendType!=='all')?'<div class="trend-rank">'+(idx+1)+'</div>':'';
     return '<div class="reco-card trend-card-wrap" data-tkey="'+key+'">'+rank
       +'<button class="trend-dislike" data-tdislike="'+key+'" title="Pas envie — ne plus revoir">👎</button>'
-      +(poster?'<img src="'+poster+'" alt="" loading="lazy">':'<div style="aspect-ratio:2/3;display:flex;align-items:center;justify-content:center;font-size:1.8rem;background:var(--input-bg)">'+(mt==='tv'?'🎬':'🎥')+'</div>')
+      +'<img src="'+poster+'" alt="" loading="lazy">'
       +'<div class="rc-body"><div class="rc-title">'+esc(t)+'</div><div class="rc-meta">'+(y||'—')+(r.vote_average?' · ⭐'+r.vote_average.toFixed(1):'')+' · '+(mt==='tv'?'Film':'Scène')+'</div>'
       +(isOwned?'<div class="trend-owned">✅ Déjà dans ta liste</div>'
         :'<div class="trend-actions"><button class="trend-add-avoir" data-tadd="avoir" data-tk="'+key+'">📌 À voir</button><button class="trend-add-vu" data-tadd="vu" data-tk="'+key+'">✓ Vu</button></div>')
@@ -9325,6 +9458,27 @@ function drawTrending(list){
     var card=btn.closest('.trend-card-wrap');if(card){card.style.transition='opacity .25s';card.style.opacity='0';setTimeout(function(){card.remove();},250);}
     toast('👎 Ne reviendra plus dans tes tendances');
   });});
+  // Clique sur la carte (hors boutons) = ouvre la fiche détail, comme partout ailleurs sur le site.
+  grid.querySelectorAll('.trend-card-wrap').forEach(function(card){card.addEventListener('click',function(e){
+    if(e.target.closest('[data-tadd]')||e.target.closest('[data-tdislike]')||e.target.closest('.nfm-btn'))return;
+    navigateToCatModal(card.dataset.tkey);
+  });});
+  // Affiche générée au départ pour les fiches sans vraie affiche (ci-dessus) : on tente quand
+  // même, en tâche de fond, de retrouver une vraie image ailleurs (ThePornDB + Eporner) et on
+  // la glisse à la place si elle arrive — sans bloquer ni re-dessiner toute la grille.
+  if(window.scFindPoster){
+    list.slice(0,40).forEach(function(r){
+      if(!r._scGenerated&&r.poster_path&&r.poster_path.indexOf('data:')===0)r._scGenerated=true;
+      if(!r._scGenerated)return;
+      var mt=r.media_type==='tv'?'tv':'movie',key=mt+'_'+r.id;
+      var t=mt==='movie'?(r.title||r.name):(r.name||r.title);
+      scFindPoster(t).then(function(u){
+        if(!u||!r._scGenerated)return;
+        r.poster_path=u;r._scGenerated=false;
+        var img=grid.querySelector('[data-tkey="'+key+'"] img');if(img)img.src=u;
+      });
+    });
+  }
   enrichSubBadges(grid);addNfmButtons(grid);
 }
 function findTrend(key){
@@ -9587,10 +9741,11 @@ function drawCatGrid(list){
     var t=mt==='movie'?(r.title||r.name):(r.name||r.title);
     var y=((mt==='movie'?r.release_date:r.first_air_date)||'').slice(0,4);
     var key=mt+'_'+r.id;
-    var poster=r.poster_path?''+r.poster_path:'';
+    if(!r.poster_path)r.poster_path=genPosterUrl(t,mt);
+    var poster=''+r.poster_path;
     var tvPlaceholder=mt==='tv'?'<div data-tvstatus="'+key+'"></div>':'';
     return '<div class="reco-card trend-card-wrap" data-ckey="'+key+'">'
-      +(poster?'<img src="'+poster+'" alt="" loading="lazy">':'<div style="aspect-ratio:2/3;display:flex;align-items:center;justify-content:center;font-size:1.8rem;background:var(--input-bg)">'+(mt==='tv'?'🎬':'🎥')+'</div>')
+      +'<img src="'+poster+'" alt="" loading="lazy">'
       +'<div class="rc-body"><div class="rc-title">'+esc(t)+'</div><div class="rc-meta">'+(y||'—')+(r.vote_average?' · ⭐'+r.vote_average.toFixed(1):'')+' · '+(mt==='tv'?'🎬 Film':'🎥 Scène')+'</div>'
       +tvPlaceholder
       +'<div class="trend-actions"><button class="trend-add-avoir" data-cwish="'+key+'">📌 M\'intéresse</button></div></div></div>';
@@ -9603,6 +9758,7 @@ function drawCatGrid(list){
   enrichTvStatusOnGrid(grid,list);
 }
 function findCatItem(key){
+  var tr=(typeof findTrend==='function')&&findTrend(key);if(tr)return tr;
   for(var i=0;i<catResults.length;i++){var r=catResults[i],mt=r.media_type==='tv'?'tv':'movie';if(mt+'_'+r.id===key)return r;}
   var pend=(window._catPendCache||[]);for(var j=0;j<pend.length;j++){var r2=pend[j],mt2=r2.media_type==='tv'?'tv':'movie';if(mt2+'_'+r2.id===key)return r2;}
   var rel=(window._catRelCache||[]);for(var k=0;k<rel.length;k++){var r3=rel[k],mt3=r3.media_type==='tv'?'tv':'movie';if(mt3+'_'+r3.id===key)return r3;}
@@ -9642,11 +9798,12 @@ function openCatModal(key){
   var mt=r.media_type==='tv'?'tv':'movie';
   var title=mt==='movie'?(r.title||r.name):(r.name||r.title);
   var year=((mt==='movie'?r.release_date:r.first_air_date)||'').slice(0,4);
-  var poster=r.poster_path?''+r.poster_path:'';
+  if(!r.poster_path)r.poster_path=genPosterUrl(title,mt);
+  var poster=''+r.poster_path;
   var pseudoId='cat_'+mt+'_'+r.id;
   var typeLbl=mt==='tv'?'🎬 Film':'🎥 Scène';
   var html='<div class="bm-hero">'
-    +'<div class="bm-cover" '+(poster?'style="background-image:url('+poster+')"':'')+'>'+(poster?'':'🎬')+'</div>'
+    +'<div class="bm-cover" style="background-image:url('+poster+')"></div>'
     +'<div class="bm-meta"><h2>'+esc(title)+'</h2>'
     +'<div class="bm-author">'+(year||'?')+(r.vote_average?' · ⭐ TMDB '+r.vote_average.toFixed(1):'')+'</div>'
     +'<div class="book-badges" style="margin-top:11px"><span class="bbadge">'+typeLbl+'</span></div>'
@@ -17012,13 +17169,14 @@ function loadPlatformDiscover(def){
 function platformCardHtml(r,todayS,addAttr){
   var mt=r.media_type;
   var t=mt==='movie'?(r.title||r.name):(r.name||r.title);
-  var poster=r.poster_path?''+r.poster_path:'';
+  if(!r.poster_path)r.poster_path=genPosterUrl(t,mt);
+  var poster=''+r.poster_path;
   var isFuture=!r._relDate||r._relDate>todayS;
   var dateLbl=r._relDate?new Date(r._relDate+'T12:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}):'Date à venir';
   var key=mt+'_'+r.id;
   var synopsis=r.overview?esc(r.overview):'<span data-synload="'+key+'">⏳ Recherche du synopsis…</span>';
   return '<div class="pf-card trend-card-wrap" data-ckey="'+key+'">'
-    +(poster?'<img src="'+poster+'" alt="" loading="lazy">':'<div class="pf-noposter">'+(mt==='tv'?'🎬':'🎥')+'</div>')
+    +'<img src="'+poster+'" alt="" loading="lazy">'
     +'<div class="pf-body">'
     +'<div class="pf-top"><span class="cat-type-badge '+(mt==='tv'?'cat-type-tv':'cat-type-movie')+'">'+(mt==='tv'?'🎬 Film':'🎥 Scène')+'</span>'
     +'<span class="pf-date'+(isFuture?' pf-future':'')+'">'+(isFuture?'📅 ':'')+dateLbl+'</span></div>'
@@ -17121,12 +17279,13 @@ function drawCatReleases(list){
   grid.innerHTML=filtered.map(function(r){
     var mt=r.media_type;
     var t=mt==='movie'?(r.title||r.name):(r.name||r.title);
-    var poster=r.poster_path?''+r.poster_path:'';
+    if(!r.poster_path)r.poster_path=genPosterUrl(t,mt);
+    var poster=''+r.poster_path;
     var dateVal=(mt==='movie'?r.release_date:r.first_air_date)||'';
     var badge='<span class="cat-release-badge '+(r._kind==='cinema'?'cinema':'platform')+'">'+(r._kind==='cinema'?'🎥 Cinéma':(mt==='tv'?'📺 Série':'📺 Plateforme'))+'</span>';
     var tvPlaceholder=mt==='tv'?'<div data-tvstatus="'+mt+'_'+r.id+'"></div>':'';
     return '<div class="reco-card trend-card-wrap" data-ckey="'+mt+'_'+r.id+'">'
-      +(poster?'<img src="'+poster+'" alt="" loading="lazy">':'<div style="aspect-ratio:2/3;display:flex;align-items:center;justify-content:center;font-size:1.8rem;background:var(--input-bg)">'+(mt==='tv'?'🎬':'🎥')+'</div>')
+      +'<img src="'+poster+'" alt="" loading="lazy">'
       +'<div class="rc-body"><div class="rc-title">'+esc(t)+'</div><div class="rc-meta">'+(dateVal?new Date(dateVal).toLocaleDateString('fr-FR'):'—')+'</div>'+tvPlaceholder+badge+'</div></div>';
   }).join('');
   grid.querySelectorAll('.trend-card-wrap').forEach(function(card){card.addEventListener('click',function(){openCatModal(card.dataset.ckey);});});
@@ -17183,11 +17342,12 @@ function drawCatPending(list,isTvUnknown){
     +list.map(function(r){
     var mt=r.media_type;
     var t=mt==='movie'?(r.title||r.name):(r.name||r.title);
-    var poster=r.poster_path?''+r.poster_path:'';
+    if(!r.poster_path)r.poster_path=genPosterUrl(t,mt);
+    var poster=''+r.poster_path;
     var frStatus=r._frDate?('📅 France prévue le '+new Date(r._frDate).toLocaleDateString('fr-FR')):'<span class="cat-fr-status unknown">Date France non annoncée</span>';
     var tvPlaceholder=mt==='tv'?'<div data-tvstatus="'+mt+'_'+r.id+'"></div>':'';
     return '<div class="reco-card trend-card-wrap" data-ckey="'+mt+'_'+r.id+'">'
-      +(poster?'<img src="'+poster+'" alt="" loading="lazy">':'<div style="aspect-ratio:2/3;display:flex;align-items:center;justify-content:center;font-size:1.8rem;background:var(--input-bg)">'+(mt==='tv'?'🎬':'🎥')+'</div>')
+      +'<img src="'+poster+'" alt="" loading="lazy">'
       +'<div class="rc-body"><div class="rc-title">'+esc(t)+'</div>'+tvPlaceholder+'<div class="cat-fr-status">'+frStatus+'</div></div></div>';
   }).join('');
   grid.querySelectorAll('.trend-card-wrap').forEach(function(card){card.addEventListener('click',function(){openCatModal(card.dataset.ckey);});});
