@@ -559,6 +559,18 @@ body.dark .series-avg-note .san-val{color:var(--sun);}
 .rewatch-toggle{position:absolute;top:8px;right:64px;width:22px;height:22px;border-radius:50%;border:none;background:rgba(255,255,255,.85);font-size:.85rem;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:2;box-shadow:0 1px 3px rgba(0,0,0,.2);filter:grayscale(1);opacity:.55;transition:transform .15s,filter .15s,opacity .15s;}
 .rewatch-toggle:hover{transform:scale(1.12);}
 .rewatch-toggle.active{filter:none;opacity:1;background:rgba(255,255,255,.95);}
+.landscape-toggle{position:absolute;top:8px;right:92px;width:22px;height:22px;border-radius:50%;border:none;background:rgba(255,255,255,.85);font-size:.8rem;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:2;box-shadow:0 1px 3px rgba(0,0,0,.2);filter:grayscale(1);opacity:.55;transition:transform .15s,filter .15s,opacity .15s;}
+.landscape-toggle:hover{transform:scale(1.12);}
+.landscape-toggle.active{filter:none;opacity:1;background:rgba(255,255,255,.95);}
+.perf-rank-list{display:flex;flex-direction:column;gap:8px;}
+.perf-rank-row{display:flex;align-items:center;gap:12px;background:var(--card-bg);border-radius:14px;padding:9px 14px;cursor:pointer;box-shadow:0 2px 0 var(--shadow);transition:transform .15s;}
+.perf-rank-row:hover{transform:translateX(3px);}
+.pr-rank{font-family:'Fredoka',sans-serif;font-weight:700;color:var(--muted2);width:34px;flex-shrink:0;text-align:center;}
+.pr-photo{width:44px;height:44px;border-radius:50%;object-fit:cover;flex-shrink:0;}
+.pr-ph-ph{display:flex;align-items:center;justify-content:center;background:var(--input-bg);font-size:1.3rem;}
+.pr-info{display:flex;flex-direction:column;gap:2px;min-width:0;}
+.pr-info b{font-size:.92rem;}
+.pr-info small{color:var(--muted2);font-size:.76rem;}
 .rewatch-banner{position:absolute;bottom:8px;right:8px;font-family:'Fredoka',sans-serif;font-size:.64rem;font-weight:700;padding:2px 8px;border-radius:999px;color:white;background:var(--orange);z-index:2;}
 .movie-card .delete-btn{position:absolute;bottom:8px;right:8px;width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.92);border:none;cursor:pointer;font-size:.88rem;display:flex;align-items:center;justify-content:center;color:var(--raspberry);opacity:0;transition:opacity .18s;z-index:3;}
 .movie-card:hover .delete-btn{opacity:1;}
@@ -2235,6 +2247,7 @@ body.dark .subr-details summary{color:#C9A8FF;}
           <div><label>Réalisateur / Créateur</label><input type="text" id="director-input" placeholder="Auto via recherche"></div>
           <div><label>Casting principal</label><input type="text" id="cast-input" placeholder="Auto via recherche"></div>
         </div>
+        <div id="add-fav-performer-row" style="display:none;margin:-4px 0 10px;"></div>
         <div class="field-row">
           <div>
             <label>Type</label>
@@ -2524,6 +2537,7 @@ body.dark .subr-details summary{color:#C9A8FF;}
     <button class="fun-mode-btn" data-mode="duel">⚔️ Le Duel</button>
     <button class="fun-mode-btn" data-mode="suggest">🎯 Pour ce soir</button>
     <button class="fun-mode-btn" data-mode="blindtest">🖼️ Blind Test</button>
+    <button class="fun-mode-btn" data-mode="perfblind">👤 Blind Test Interprète</button>
     <button class="fun-mode-btn" data-mode="synopsis">📝 Devine le film</button>
     <button class="fun-mode-btn" data-mode="hilo">⚖️ + ou −</button>
     <button class="fun-mode-btn" data-mode="tour">🏆 Tournoi</button>
@@ -2576,6 +2590,12 @@ body.dark .subr-details summary{color:#C9A8FF;}
   <div id="fun-blindtest-mode" style="display:none">
     <p style="text-align:center;color:var(--muted2);margin-bottom:18px;font-size:.9rem">L'affiche est ultra simplifiée. Reconnais le titre&nbsp;! Bloqué&nbsp;? Demande un indice pour la rendre plus nette.</p>
     <div class="bt-stage" id="bt-stage"></div>
+  </div>
+
+  <!-- BLIND TEST INTERPRÈTE (photo floutée) -->
+  <div id="fun-perfblind-mode" style="display:none">
+    <p style="text-align:center;color:var(--muted2);margin-bottom:18px;font-size:.9rem">La photo est floutée. Reconnais l'interprète parmi tes favoris&nbsp;! Bloqué&nbsp;? Demande un indice pour l'éclaircir.</p>
+    <div class="bt-stage" id="pb-stage"></div>
   </div>
 
   <!-- DEVINE LE FILM (synopsis) -->
@@ -2835,10 +2855,11 @@ body.dark .subr-details summary{color:#C9A8FF;}
           <div class="fav-actor-chips" id="dir-chips"></div>
         </div>
         <div class="foryou-actors-block">
-          <div class="fy-actors-head">🏢 Studios</div>
-          <div class="fy-actors-sub">A24, Ghibli, Blumhouse, Pixar…</div>
-          <div class="fy-actor-search-wrap"><input type="text" id="studio-input" placeholder="🔍 A24, Studio Ghibli…" autocomplete="off"><div class="search-results" id="studio-results"></div></div>
+          <div class="fy-actors-head">🏢 Studios suivis</div>
+          <div class="fy-actors-sub">Suis un studio : ses nouveautés ThePornDB tombent automatiquement dans tes Attentes.</div>
+          <div class="fy-actor-search-wrap"><input type="text" id="studio-input" placeholder="🔍 Cherche un studio…" autocomplete="off"><div class="search-results" id="studio-results"></div></div>
           <div class="fav-actor-chips" id="studio-chips"></div>
+          <button type="button" class="sub-action" id="studio-sync-btn" style="margin-top:8px;">🔔 Chercher les nouveautés de mes studios suivis</button>
         </div>
       </div>
     </details>
@@ -2848,6 +2869,7 @@ body.dark .subr-details summary{color:#C9A8FF;}
       <button class="cat-tab2" data-actwho="fav">🎭 Préférés</button>
       <button class="cat-tab2" data-actwho="dir">🎬 Réalisateurs</button>
       <button class="cat-tab2" data-actwho="studio">🏢 Studios</button>
+      <button class="cat-tab2" data-actwho="rank">🏆 Classement</button>
     </div>
     <div id="cat-actors-grid"></div>
   </div>
@@ -3089,6 +3111,30 @@ function tpdbFullImg(p){if(!p)return'';return /^https?:\/\//.test(p)?p:''+p;}
   function bimg(sc){return sc.background||sc.back_image||img(sc);}
   function studioName(sc){return (sc.site&&sc.site.name)||(sc.studio&&sc.studio.name)||(sc.parent&&sc.parent.name)||sc.studio_name||'';}
   function perfNames(sc){return (sc.performers||[]).map(function(p){return p&&(p.name||(p.parent&&p.parent.name));}).filter(Boolean);}
+  // Normalise le genre, quel que soit le champ d'où il vient (ThePornDB met ça tantôt
+  // sur l'objet directement, tantôt sous .parent.extra, suivant l'endpoint) — on ne
+  // retient "Female" que si c'est explicitement confirmé, jamais par défaut/déduction.
+  function perfGender(p){
+    if(!p)return'';
+    var g=p.gender||p.extra&&p.extra.gender||(p.parent&&(p.parent.gender||(p.parent.extra&&p.parent.extra.gender)))||'';
+    g=(''+g).trim().toLowerCase();
+    if(g.indexOf('f')===0)return'Female';
+    if(g.indexOf('m')===0)return'Male';
+    return'';
+  }
+  function perfImg(p){
+    if(!p)return'';
+    return p.image||p.photo||(p.parent&&(p.parent.image||p.parent.photo))||(Array.isArray(p.posters)&&p.posters[0]&&(p.posters[0].url||p.posters[0]))||'';
+  }
+  // Version enrichie de perfNames : conserve id/genre/photo pour les fonctionnalités
+  // liées aux interprètes (favoris filtrés "filles uniquement", fiche interprète…).
+  function perfObjs(sc){
+    return (sc.performers||[]).map(function(p){
+      if(!p)return null;
+      var name=p.name||(p.parent&&p.parent.name);if(!name)return null;
+      return {id:p.id||(p.parent&&p.parent.id)||name,name:name,gender:perfGender(p),image:perfImg(p)};
+    }).filter(Boolean);
+  }
   function relDate(sc){return (sc.date||sc.released_at||sc.release_date||'')+'';}
   function tagNames(sc){return (sc.tags||sc.categories||[]).map(function(t){return (t&&(t.name||t))||'';}).filter(Boolean);}
   var KIND_EP={movie:'scenes',tv:'movies'};
@@ -3148,6 +3194,53 @@ function tpdbFullImg(p){if(!p)return'';return /^https?:\/\//.test(p)?p:''+p;}
       .catch(function(){return [];}),4000,[]);
   }
 
+  /* ====== ADULTDATALINK — enrichissement des fiches interprètes ======
+     Contrairement à ThePornDB/Eporner, AdultDataLink n'est PAS branché sur la
+     recherche/les tendances : sa documentation publique ne confirme qu'un seul
+     point d'accès, dédié aux interprètes (/pornstar/pornstar-data), donc on
+     l'utilise uniquement pour enrichir la fiche d'une actrice/acteur (bio,
+     mensurations, nationalité, photo...) quand on ouvre sa page.
+     ⚠️ Important : je n'ai pas pu tester cet appel en conditions réelles (ce
+     bac à sable bloque les requêtes vers les domaines adultes, comme pour
+     ThePornDB/Eporner plus haut) — le parsing ci-dessous essaie plusieurs noms
+     de champs plausibles par sécurité, mais si ça ne remonte rien une fois en
+     ligne, dis-le moi et j'ajuste le mapping.
+     La clé n'est jamais écrite en dur dans ce fichier (il est public sur
+     GitHub Pages) : elle se colle une fois dans les réglages, comme la clé
+     ThePornDB, et reste uniquement dans ton navigateur (localStorage). */
+  var ADL_BASE='https://api.adultdatalink.com';
+  var ADL_KEY_K='st_adl_key';
+  function getAdlKey(){return localStorage.getItem(ADL_KEY_K)||'';}
+  function setAdlKey(k){try{localStorage.setItem(ADL_KEY_K,(k||'').trim());}catch(_){}}
+  function adlHdrs(){return {headers:{'Authorization':'Bearer '+getAdlKey(),'Accept':'application/json'}};}
+  var _adlCache={};
+  function adlPornstarInfo(name){
+    if(!name||!getAdlKey())return Promise.resolve(null);
+    var k=name.trim().toLowerCase();
+    if(_adlCache[k])return _adlCache[k];
+    _adlCache[k]=withTimeout(
+      j(_realFetch(ADL_BASE+'/pornstar/pornstar-data?name='+encodeURIComponent(name),adlHdrs())).then(function(d){
+        if(!d)return null;
+        var p=d.data||d.result||d.pornstar||d.performer||d;
+        if(Array.isArray(p))p=p[0];
+        if(!p||typeof p!=='object')return null;
+        return {
+          name:p.name||p.stage_name||name,
+          bio:p.bio||p.biography||p.description||'',
+          photo:p.image||p.photo||p.picture||p.avatar||'',
+          gender:perfGender(p),
+          nationality:p.nationality||p.country||p.ethnicity||'',
+          birthDate:p.birth_date||p.birthday||p.dob||'',
+          measurements:p.measurements||'',
+          aliases:p.aliases||p.also_known_as||[],
+          studios:p.studios||p.sites||[]
+        };
+      }).catch(function(){return null;}),
+      4000,null
+    );
+    return _adlCache[k];
+  }
+
   var _detail={};
   function rawDetail(kind,id){
     var k=kind+':'+id;
@@ -3176,9 +3269,9 @@ function tpdbFullImg(p){if(!p)return'';return /^https?:\/\//.test(p)?p:''+p;}
       episode_run_time:sc.duration?[Math.round(sc.duration/60)]:[],
       vote_average:sc.rating||sc._score||0,
       number_of_seasons:1,number_of_episodes:(scenes&&scenes.length)||1,
-      networks:st?[{name:st}]:[],created_by:st?[{name:st}]:[],
+      networks:st?[{name:st}]:[],created_by:st?[{name:st}]:[],production_companies:st?[{id:st,name:st}]:[],
       genres:tagNames(sc).map(function(n,i){return {id:5000+i,name:n};}),
-      credits:{cast:perfNames(sc).map(function(n,i){return {name:n,order:i};}),crew:st?[{name:st,job:'Director',department:'Directing'}]:[]},
+      credits:{cast:perfObjs(sc).map(function(p,i){return {id:p.id,name:p.name,order:i,gender:p.gender,profile_path:p.image};}),crew:st?[{name:st,job:'Director',department:'Directing'}]:[]},
       _tpdbScenes:scenes,success:true
     };
   }
@@ -3244,8 +3337,47 @@ function tpdbFullImg(p){if(!p)return'';return /^https?:\/\//.test(p)?p:''+p;}
         return {cast:scenes.map(function(s){return toSearchResult(s,'movie');}).concat(movies.map(function(s){return toSearchResult(s,'tv');}))};
       });
     }
+    if(/\/search\/company$/.test(path)){
+      // Studios suivis : côté ThePornDB/Eporner, un studio n'est qu'un NOM (pas un
+      // id numérique comme les "company id" TMDB) — l'"id" renvoyé ici est donc le
+      // nom lui-même. On propose d'abord les studios déjà présents dans ta collection
+      // (networkName), puis on complète avec ce que la recherche ThePornDB remonte.
+      if(!q)return Promise.resolve({results:[]});
+      var qlc=q.trim().toLowerCase();
+      var seenSt={},out1=[];
+      (items||[]).forEach(function(i){
+        var n=i.networkName;
+        if(n&&n.toLowerCase().indexOf(qlc)>=0&&!seenSt[n.toLowerCase()]){seenSt[n.toLowerCase()]=1;out1.push({id:n,name:n,logo_path:''});}
+      });
+      return Promise.all([
+        j(_realFetch(TB+'/scenes?q='+encodeURIComponent(q)+'&parse='+encodeURIComponent(q),hdrs())),
+        j(_realFetch(TB+'/movies?q='+encodeURIComponent(q)+'&parse='+encodeURIComponent(q),hdrs()))
+      ]).then(function(res){
+        var scenes=(res[0]&&(res[0].data||res[0].scenes||res[0].results))||[];
+        var movies=(res[1]&&(res[1].data||res[1].movies||res[1].results))||[];
+        scenes.concat(movies).forEach(function(sc){
+          var n=studioName(sc);
+          if(n&&n.toLowerCase().indexOf(qlc)>=0&&!seenSt[n.toLowerCase()]){seenSt[n.toLowerCase()]=1;out1.push({id:n,name:n,logo_path:''});}
+        });
+        return {results:out1.slice(0,8)};
+      });
+    }
     if(/\/genre\/(movie|tv)\/list$/.test(path))return Promise.resolve({genres:[]});
-    if(/\/discover\/(movie|tv)$/.test(path))return Promise.resolve({results:[]});
+    if(m=path.match(/\/discover\/(movie|tv)$/)){
+      var wc=qs.get('with_companies');
+      if(wc){
+        // "Studio suivi" : nouveautés de CE studio (nom exact, insensible à la casse)
+        // chez ThePornDB — Eporner n'a pas de studio par vidéo donc on ne le mélange
+        // pas ici (il reste "Eporner" pour tous ses contenus).
+        var mtD=m[1],epKind=KIND_EP[mtD],wcl=wc.trim().toLowerCase();
+        return j(_realFetch(TB+'/'+epKind,hdrs())).then(function(d){
+          var list=(d&&(d.data||d.scenes||d.movies||d.results))||[];
+          var filtered=list.filter(function(sc){return studioName(sc).trim().toLowerCase()===wcl;});
+          return {results:filtered.map(function(sc){return toSearchResult(sc,mtD);})};
+        });
+      }
+      return Promise.resolve({results:[]});
+    }
     if(m=path.match(/\/trending\/(movie|tv|all)\/\w+$/)||path.match(/\/(movie|tv)\/(popular|top_rated)$/)){
       // "Tendances" : pas d'équivalent exact côté ThePornDB, donc on retombe sur un
       // listing général (scènes pour "movie", films pour "tv") plutôt que de deviner
@@ -3312,6 +3444,9 @@ function tpdbFullImg(p){if(!p)return'';return /^https?:\/\//.test(p)?p:''+p;}
     }
     return _realFetch(url,opts);
   };
+  // Exposés globalement : la fiche interprète (openEntityPage, hors de cette IIFE)
+  // s'en sert pour l'enrichissement AdultDataLink et le prompt de clé inline.
+  window.getAdlKey=getAdlKey;window.setAdlKey=setAdlKey;window.adlPornstarInfo=adlPornstarInfo;
 })();
 
 /* ====== STORE ====== */
@@ -4170,8 +4305,28 @@ function onSelectTmdb(it){
   if(it.poster_path){var url=''+it.poster_path;posterDataUrl=url;pu.style.backgroundImage='url('+url+')';pu.classList.add('has-img');}
   dirIn.value='…';castIn.value='…';
   var credUrl=it.media_type==='movie'?'https://api.themoviedb.org/3/movie/'+it.id+'/credits?api_key='+TMDB+'&language=fr-FR':'https://api.themoviedb.org/3/tv/'+it.id+'/credits?api_key='+TMDB+'&language=fr-FR';
-  fetch(credUrl).then(function(r){return r.json();}).then(function(d){var dirs=(d.crew||[]).filter(function(c){return c.job==='Director'||c.department==='Directing';}).map(function(c){return c.name;});if(!dirs.length&&it.media_type==='tv'){fetch('https://api.themoviedb.org/3/tv/'+it.id+'?api_key='+TMDB+'&language=fr-FR').then(function(r){return r.json();}).then(function(det){dirIn.value=(det.created_by||[]).map(function(c){return c.name;}).join(', ')||'—';});} else {dirIn.value=dirs.slice(0,3).join(', ')||'—';}castIn.value=(d.cast||[]).slice(0,5).map(function(c){return c.name;}).join(', ')||'—';}).catch(function(){dirIn.value='';castIn.value='';});
+  fetch(credUrl).then(function(r){return r.json();}).then(function(d){var dirs=(d.crew||[]).filter(function(c){return c.job==='Director'||c.department==='Directing';}).map(function(c){return c.name;});if(!dirs.length&&it.media_type==='tv'){fetch('https://api.themoviedb.org/3/tv/'+it.id+'?api_key='+TMDB+'&language=fr-FR').then(function(r){return r.json();}).then(function(det){dirIn.value=(det.created_by||[]).map(function(c){return c.name;}).join(', ')||'—';});} else {dirIn.value=dirs.slice(0,3).join(', ')||'—';}castIn.value=(d.cast||[]).slice(0,5).map(function(c){return c.name;}).join(', ')||'—';offerAddFemalePerformers(d.cast);}).catch(function(){dirIn.value='';castIn.value='';hideAddFemalePerformers();});
   fetchAutoInfo(it);
+}
+/* Quand on ajoute une vidéo, propose d'ajouter directement l'interprète (ou les
+   interprètes) à tes favoris — uniquement les filles, jamais les hommes, et
+   seulement si le genre est explicitement confirmé par la source (sinon on ne
+   propose rien plutôt que de deviner). */
+function hideAddFemalePerformers(){var r=document.getElementById('add-fav-performer-row');if(r){r.style.display='none';r.innerHTML='';}}
+function offerAddFemalePerformers(cast){
+  var row=document.getElementById('add-fav-performer-row');if(!row)return;
+  var girls=(cast||[]).filter(function(c){return c&&c.gender==='Female'&&c.name&&!favActors.some(function(f){return f.id===c.id;});});
+  if(!girls.length){hideAddFemalePerformers();return;}
+  row.style.display='flex';row.style.flexWrap='wrap';row.style.gap='8px';row.style.alignItems='center';
+  row.innerHTML='<span style="font-size:.8rem;color:var(--muted);align-self:center;">🎭 Ajouter aux favorites&nbsp;:</span>'
+    +girls.map(function(c){return '<button type="button" class="ep-btn-small" data-addgirl="'+esc(''+c.id)+'" style="border-color:var(--raspberry);color:var(--raspberry);">+ '+esc(c.name)+'</button>';}).join('');
+  row.querySelectorAll('[data-addgirl]').forEach(function(btn){
+    var c=girls.find(function(x){return(''+x.id)===btn.dataset.addgirl;});if(!c)return;
+    btn.addEventListener('click',function(){
+      addFavActor({id:c.id,name:c.name,photo:c.profile_path||''});
+      btn.outerHTML='<span style="font-size:.78rem;color:var(--mint);">✓ '+esc(c.name)+'</span>';
+    });
+  });
 }
 
 function fetchAutoInfo(it){
@@ -4248,6 +4403,7 @@ function fetchAutoGallery(it){
 
 /* ====== FORM RESET / EDIT ====== */
 function resetForm(){
+  hideAddFemalePerformers();
   document.getElementById('title-input').value='';document.getElementById('year-input').value='';document.getElementById('review-input').value='';document.getElementById('notes-input').value='';document.getElementById('quote-input').value='';
   dirIn.value='';castIn.value='';document.getElementById('watched-date-input').value='';document.getElementById('favchar-input').value='';document.getElementById('favcouple-input').value='';
   document.getElementById('prog-s').value=1;document.getElementById('prog-e').value=1;document.getElementById('prog-bar').style.width='0%';
@@ -4499,10 +4655,11 @@ function renderLibrary(){
       +(item.rating>0?'<div class="card-hov-rating">'+starsHtml(item.rating)+'</div>':'')
       +'</div>';
     return '<div class="movie-card" data-id="'+item.id+'" style="--i:'+Math.min(idx,24)+'">'
-      +'<div class="poster-wrap">'
+      +'<div class="poster-wrap'+(item.posterFormat==='landscape'?' landscape':'')+'">'
       +(item.poster?'<img src="'+item.poster+'" alt="">':'<div class="placeholder">'+(item.type==='serie'?'🎬':'🎥')+'</div>')
       +'<span class="type-badge '+item.type+(item.cartoon?' cartoon':'')+'">'+(item.cartoon?'🎨 ':'')+(item.type==='film'?'Scène':'Film')+'</span>'
       +(item.fav?'<span class="fav-badge">❤️</span>':'')
+      +(item.type==='film'?'<button class="landscape-toggle'+(item.posterFormat==='landscape'?' active':'')+'" data-landscape="'+item.id+'" title="'+(item.posterFormat==='landscape'?'Repasser en portrait':'Passer en paysage 16:9')+'">🖥️</button>':'')
       +'<button class="rewatch-toggle'+(item.toRewatch?' active':'')+'" data-rewatch="'+item.id+'" title="'+(item.toRewatch?'Sur la liste à revoir':'Marquer à revoir')+'">🔁</button>'
       +(item.personalNotes?'<span class="note-badge" title="">📌<span class="note-tip">'+esc(item.personalNotes)+'</span></span>':'')
       +'<span class="status-badge '+(item.status||'termine')+'">'+(item.status==='a_voir'?'À voir':item.status==='en_cours'?'En cours':item.status==='en_pause'?'En pause':'Vu')+'</span>'
@@ -4516,10 +4673,11 @@ function renderLibrary(){
       +cardTags
       +prog+'</div></div>';
   }).join('');
-  grid.querySelectorAll('.movie-card').forEach(function(c){c.addEventListener('click',function(e){if(e.target.closest('.delete-btn')||e.target.closest('.rewatch-toggle')||e.target.closest('.card-play')||e.target.closest('.card-tag-chip'))return;openModal(parseInt(c.dataset.id));});});
+  grid.querySelectorAll('.movie-card').forEach(function(c){c.addEventListener('click',function(e){if(e.target.closest('.delete-btn')||e.target.closest('.rewatch-toggle')||e.target.closest('.landscape-toggle')||e.target.closest('.card-play')||e.target.closest('.card-tag-chip'))return;openModal(parseInt(c.dataset.id));});});
   grid.querySelectorAll('[data-cardplay]').forEach(function(b){b.addEventListener('click',function(e){e.stopPropagation();window.playTrailerById(parseInt(b.dataset.cardplay));});});
   grid.querySelectorAll('[data-del]').forEach(function(b){b.addEventListener('click',function(e){e.stopPropagation();deleteItem(parseInt(b.dataset.del));});});
   grid.querySelectorAll('[data-rewatch]').forEach(function(b){b.addEventListener('click',function(e){e.stopPropagation();toggleRewatch(parseInt(b.dataset.rewatch));});});
+  grid.querySelectorAll('[data-landscape]').forEach(function(b){b.addEventListener('click',function(e){e.stopPropagation();toggleLandscape(parseInt(b.dataset.landscape));});});
   grid.querySelectorAll('.card-tag-chip').forEach(function(b){b.addEventListener('click',function(e){e.stopPropagation();openEntityPage({type:'tag',value:b.dataset.tagval});});});
 }
 
@@ -4527,6 +4685,12 @@ function toggleRewatch(id){
   var item=items.find(function(i){return i.id===id;});if(!item)return;
   item.toRewatch=!item.toRewatch;sv();renderAll();
   toast(item.toRewatch?'Ajouté à ta liste "à revoir" 🔁':'Retiré de ta liste "à revoir"');
+}
+// Mode paysage (16:9) pour les cartes Scène, au lieu de l'affiche verticale 2:3 par défaut.
+function toggleLandscape(id){
+  var item=items.find(function(i){return i.id===id;});if(!item)return;
+  item.posterFormat=item.posterFormat==='landscape'?'vertical':'landscape';sv();renderAll();
+  toast(item.posterFormat==='landscape'?'🖥️ Mode paysage activé':'📱 Mode portrait');
 }
 
 /* ====== 🏷️ FICHE TAG / ACTEUR (style Netflix) ======
@@ -4605,12 +4769,28 @@ function openEntityPage(ent){
     ?items.filter(function(i){var c=(i.castFr||i.cast||'');return c.split(',').map(function(s){return s.trim().toLowerCase();}).indexOf(ent.value.toLowerCase())>=0;})
     :items.filter(function(i){return(i.tags||[]).indexOf(ent.value)>=0;});
   var box=document.getElementById('tagpage-content');
+  // Fiche interprète = un vrai "profil fan" perso : nb de scènes vues chez toi,
+  // ta note moyenne sur elle, ses studios chez toi — pas juste un filtre de titres.
+  var statsHtml='';
+  if(isActor&&mine.length){
+    var rated=mine.filter(function(i){return i.rating>0;});
+    var avg=rated.length?(rated.reduce(function(s,i){return s+i.rating;},0)/rated.length):0;
+    var studios={};mine.forEach(function(i){if(i.networkName)studios[i.networkName]=1;});
+    var studioList=Object.keys(studios);
+    statsHtml='<div class="tagpage-section" style="display:flex;gap:10px;flex-wrap:wrap;">'
+      +'<span class="ac-chip">🎬 '+mine.length+' scène'+(mine.length>1?'s':'')+' chez toi</span>'
+      +(avg?'<span class="ac-chip">⭐ '+avg.toFixed(1)+'/5 en moyenne</span>':'')
+      +(studioList.length?'<span class="ac-chip">🏢 '+esc(studioList.slice(0,3).join(', '))+(studioList.length>3?' +'+(studioList.length-3):'')+'</span>':'')
+      +'</div>';
+  }
   box.innerHTML='<div class="tagpage-header"><span class="tph-icon">'+(isActor?'🎭':'🏷️')+'</span><h2>'+esc(ent.value)+'</h2>'
     +'<button type="button" class="sub-action" id="tagpage-vr-btn" style="margin-left:auto;">🔥 Voir dans mon tracker VR</button></div>'
+    +statsHtml
+    +(isActor?'<div id="tagpage-adl" style="margin:-4px 0 14px;"></div>':'')
     +'<div class="tagpage-section"><h3>Dans ta liste ('+mine.length+')</h3>'
     +(mine.length?'<div class="tagpage-mylist-grid" id="tagpage-mine"></div>':'<div class="news-empty">Rien dans ta liste pour l\'instant.</div>')
     +'</div>'
-    +'<div class="tagpage-section"><h3>🍿 Sur TMDB, pas encore dans ta liste</h3>'
+    +'<div class="tagpage-section"><h3>🍿 D\'autres suggestions, pas encore dans ta liste</h3>'
     +'<div class="trend-loading" id="tagpage-api">Chargement…</div>'
     +'</div>';
   document.getElementById('tagpage-overlay').classList.add('show');
@@ -4620,6 +4800,33 @@ function openEntityPage(ent){
     var mineBox=document.getElementById('tagpage-mine');
     mineBox.innerHTML=mine.map(tagpageMineCardHtml).join('');
     mineBox.querySelectorAll('.movie-card').forEach(function(c){c.addEventListener('click',function(){closeTagPage();openModal(parseInt(c.dataset.id));});});
+  }
+  // Enrichissement AdultDataLink (bio, nationalité, mensurations…) — uniquement
+  // pour une fiche interprète, et seulement si une clé a été collée dans les réglages.
+  if(isActor){
+    var adlBox=document.getElementById('tagpage-adl');
+    if(adlBox){
+      if(!window.getAdlKey||!window.getAdlKey()){
+        adlBox.innerHTML='<div class="search-loading" style="cursor:default;max-width:460px;">🔎 Ajoute ta clé API AdultDataLink pour voir bio, nationalité, mensurations… (<a href="#" id="adl-setkey-inline">clique ici</a>)</div>';
+        var adlLnk=adlBox.querySelector('#adl-setkey-inline');
+        if(adlLnk)adlLnk.addEventListener('click',function(e){e.preventDefault();var k=prompt('Colle ta clé API AdultDataLink :');if(k){window.setAdlKey(k);openEntityPage(ent);}});
+      } else {
+        adlBox.innerHTML='<div class="search-loading">🔎 Recherche sur AdultDataLink…</div>';
+        window.adlPornstarInfo(ent.value).then(function(info){
+          var b=document.getElementById('tagpage-adl');if(!b)return;
+          if(!info){b.innerHTML='';return;}
+          var chips=[];
+          if(info.nationality)chips.push('<span class="ac-chip">🌍 '+esc(info.nationality)+'</span>');
+          if(info.birthDate)chips.push('<span class="ac-chip">🎂 '+esc(info.birthDate)+'</span>');
+          if(info.measurements)chips.push('<span class="ac-chip">📏 '+esc(info.measurements)+'</span>');
+          b.innerHTML='<div class="adl-enrich" style="display:flex;gap:12px;align-items:flex-start;">'
+            +(info.photo?'<img src="'+esc(info.photo)+'" alt="" style="width:64px;height:64px;border-radius:50%;object-fit:cover;flex-shrink:0;">':'')
+            +'<div>'+(chips.length?'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px;">'+chips.join('')+'</div>':'')
+            +(info.bio?'<p style="font-size:.84rem;color:var(--muted);margin:0;">'+esc(info.bio).slice(0,280)+(info.bio.length>280?'…':'')+'</p>':'')
+            +'</div></div>';
+        }).catch(function(){var b=document.getElementById('tagpage-adl');if(b)b.innerHTML='';});
+      }
+    }
   }
   var owned=getOwnedCatKeys();
   var fetchP=isActor?fetchActorSuggestions(ent.value):fetchTagSuggestions(ent.value);
@@ -5040,7 +5247,7 @@ function openModal(id){
     +(hasTabs?'<div class="modal-tabs"><button class="modal-tab active" data-tab="infos">ℹ️ Infos</button><button class="modal-tab" data-tab="episodes">📺 Épisodes</button></div>':'')
     +'<div class="modal-tab-content active" id="mt-infos">'
     +'<h2>'+esc(item.titleLatin||item.title)+(item.fav?' ❤️':'')+(item.toRewatch?' 🔁':'')+stBadge+'</h2>'+((item.titleLatin&&item.titleLatin!==item.title)?'<div class="orig-title">'+esc(item.title)+'</div>':'')
-    +'<div class="meta">'+(item.year||'—')+' · '+(item.type==='film'?'🎬 Film':'📺 Série')+' · '+(item.status==='a_voir'?'📌 À voir':item.status==='en_cours'?'▶️ En cours':item.status==='en_pause'?'⏸️ En pause':'✅ Vu')+(item.watchedDate?' · '+new Date(item.watchedDate).toLocaleDateString('fr-FR'):'')+'</div>'
+    +'<div class="meta">'+(item.year||'—')+' · '+(item.type==='film'?'🎥 Scène':'🎬 Film')+' · '+(item.status==='a_voir'?'📌 À voir':item.status==='en_cours'?'▶️ En cours':item.status==='en_pause'?'⏸️ En pause':'✅ Vu')+(item.watchedDate?' · '+new Date(item.watchedDate).toLocaleDateString('fr-FR'):'')+'</div>'
     +watchHelperHtml(item)
     +((item.favChar||item.favCouple)?'<div class="m-watchctx">'+(item.favChar?'<span>⭐ '+esc(item.favChar)+'</span>':'')+(item.favCouple?'<span>💞 '+esc(item.favCouple)+'</span>':'')+'</div>':'')
     +(credits?'<div class="credits">'+credits+'</div>':'')
@@ -5878,7 +6085,7 @@ function openWishModal(id){
   _wishModalOpenId=id;enrichWishItem(w,function(){if(_wishModalOpenId===id)openWishModal(id);});
   if(w.tmdbType==='movie'&&w.tmdbId&&!w._channelChecked)enrichWishChannel(w,function(){if(_wishModalOpenId===id)openWishModal(id);});
   if(w.tmdbId&&w.tmdbType!=='match'&&!w._extraChecked)enrichWishExtraInfo(w,function(){if(_wishModalOpenId===id)openWishModal(id);});
-  var typeLbl=w.tmdbType==='tv'?'📺 Série':w.tmdbType==='match'?'⚽ Match':'🎬 Film';
+  var typeLbl=w.tmdbType==='tv'?'🎬 Film':w.tmdbType==='match'?'⚽ Match':'🎥 Scène';
   var relTxt=w.releaseDate?wishDateLabel(w):'';
   var cdInit=w.releaseDate?fmtCountdown(w):null;
   var cdChip=(cdInit&&cdInit.targetMs!==null&&cdInit.targetMs-Date.now()>0)
@@ -6525,7 +6732,7 @@ function setGlow(el,url){
 function archChips(it){
   var c=[];
   if(it.year)c.push('<span class="ac-chip">'+esc(String(it.year))+'</span>');
-  c.push('<span class="ac-chip">'+(it.type==='serie'?'📺 Série':'🎬 Film')+'</span>');
+  c.push('<span class="ac-chip">'+(it.type==='serie'?'🎬 Film':'🎥 Scène')+'</span>');
   if(it.tmdbRating&&it.tmdbRating>0)c.push('<span class="ac-chip">⭐ '+Number(it.tmdbRating).toFixed(1)+'</span>');
   else if(it.rating&&it.rating>0)c.push('<span class="ac-chip">⭐ '+it.rating+'</span>');
   var g=(it.tags||[]).filter(function(t){return ['Reco','Tendances','À voir','A voir'].indexOf(t)<0;})[0];
@@ -6639,7 +6846,7 @@ function drawShowcase(){
       +'<button class="sc-sound-btn" id="sc-sound" title="Activer le son" style="display:none">🔇</button>'
       +'<div class="sc-content"><div class="sc-eyebrow">'+eyebrow+'</div>'
       +'<div class="sc-title">'+esc(it.title)+'</div>'
-      +'<div class="sc-meta">'+(it.year||'')+' · '+(it.cartoon?'🎨 ':'')+(it.type==='film'?'🎬 Film':'📺 Série')+'</div>'
+      +'<div class="sc-meta">'+(it.year||'')+' · '+(it.cartoon?'🎨 ':'')+(it.type==='film'?'🎥 Scène':'🎬 Film')+'</div>'
       +'<div class="sc-actions"><button class="sc-play" data-scplay="'+it.id+'">▶️ Bande-annonce</button><button class="sc-fiche" data-scfiche="'+it.id+'">Voir la fiche</button></div>'
       +'</div></div>';
     track.style.opacity='1';
@@ -7056,7 +7263,7 @@ function renderWishDrop(results,resEl,onSelect){
     return true; // séries : toujours afficher (peut avoir une nouvelle saison), la vérif se fait à la sélection
   }).slice(0,8);
   if(!f.length){resEl.innerHTML='<div class="search-loading">Rien à venir trouvé (les films déjà sortis sont masqués ici).</div>';return;}
-  resEl.innerHTML=f.map(function(r,i){var t=r.media_type==='movie'?r.title:r.name;var y=((r.media_type==='movie'?r.release_date:r.first_air_date)||'').slice(0,4);var img=r.poster_path?''+r.poster_path:'';var ownedTag=(r.media_type==='tv'&&ownedSeries['tv'+r.id])?' · <span style="color:var(--raspberry);font-weight:600">📍 chez toi → attendre une saison</span>':'';var enTag=r._enFallback?' <span style="color:var(--muted);font-weight:400;">(titre original — pas encore trad. FR)</span>':'';return'<div class="search-result-item" data-i="'+i+'">'+(img?'<img src="'+img+'" alt="">':'<div style="width:32px;height:48px;background:var(--border);border-radius:5px;flex-shrink:0;"></div>')+'<div class="sri-info"><div>'+esc(t)+enTag+'</div><div class="y">'+(y||'à venir')+' · '+(r.media_type==='movie'?'🎬 Film':'📺 Série')+ownedTag+'</div></div></div>';}).join('');
+  resEl.innerHTML=f.map(function(r,i){var t=r.media_type==='movie'?r.title:r.name;var y=((r.media_type==='movie'?r.release_date:r.first_air_date)||'').slice(0,4);var img=r.poster_path?''+r.poster_path:'';var ownedTag=(r.media_type==='tv'&&ownedSeries['tv'+r.id])?' · <span style="color:var(--raspberry);font-weight:600">📍 chez toi → attendre une saison</span>':'';var enTag=r._enFallback?' <span style="color:var(--muted);font-weight:400;">(titre original — pas encore trad. FR)</span>':'';return'<div class="search-result-item" data-i="'+i+'">'+(img?'<img src="'+img+'" alt="">':'<div style="width:32px;height:48px;background:var(--border);border-radius:5px;flex-shrink:0;"></div>')+'<div class="sri-info"><div>'+esc(t)+enTag+'</div><div class="y">'+(y||'à venir')+' · '+(r.media_type==='movie'?'🎥 Scène':'🎬 Film')+ownedTag+'</div></div></div>';}).join('');
   resEl.querySelectorAll('.search-result-item').forEach(function(el){el.addEventListener('click',function(){onSelect(f[parseInt(el.dataset.i)]);});});
 }
 // Alerte "c'est sorti !" en haut de la page
@@ -8013,7 +8220,7 @@ function drawForYou(list){
     var y=((mt==='movie'?r.release_date:r.first_air_date)||'').slice(0,4);
     var poster=r.poster_path?''+r.poster_path:'';
     var tvPlaceholder=mt==='tv'?'<div data-tvstatus="'+mt+'_'+r.id+'"></div>':'';
-    var typeBadge='<span class="cat-type-badge '+(mt==='tv'?'cat-type-tv':'cat-type-movie')+'">'+(mt==='tv'?'📺 Série':'🎬 Film')+'</span>';
+    var typeBadge='<span class="cat-type-badge '+(mt==='tv'?'cat-type-tv':'cat-type-movie')+'">'+(mt==='tv'?'🎬 Film':'🎥 Scène')+'</span>';
     return '<div class="reco-card trend-card-wrap cat-foryou-card" data-ckey="'+mt+'_'+r.id+'">'
       +(poster?'<img src="'+poster+'" alt="" loading="lazy">':'<div style="aspect-ratio:2/3;display:flex;align-items:center;justify-content:center;font-size:1.4rem;background:var(--input-bg)">'+(mt==='tv'?'🎬':'🎥')+'</div>')
       +'<div class="rc-body">'+typeBadge+'<div class="rc-title">'+esc(t)+'</div><div class="rc-meta">'+(y||'—')+'</div>'+tvPlaceholder+(r._why?'<div class="pf-why">'+esc(r._why)+'</div>':'')+buildSimilarityBadge(r._score)+'</div></div>';
@@ -8085,15 +8292,56 @@ function bindActorSearch(inputId,resultsId,onPick){
   });
   document.addEventListener('click',function(e){if(!e.target.closest('#'+inputId)&&!e.target.closest('#'+resultsId))favRes.classList.remove('show');});
 }
-bindActorSearch('fav-actor-input','fav-actor-results',function(a){
-  if(favActors.some(function(x){return x.id===a.id;})){toast('Déjà dans tes préférés !');return;}
-  favActors.push(a);svFavActors();toast(a.name+' ajouté·e à tes préférés 🎭');onActorsChanged();
-});
+function addFavActor(a){
+  if(favActors.some(function(x){return x.id===a.id;})){toast('Déjà dans tes préférés !');return false;}
+  favActors.push(a);svFavActors();toast(a.name+' ajouté·e à tes préférés 🎭');onActorsChanged();return true;
+}
+bindActorSearch('fav-actor-input','fav-actor-results',function(a){addFavActor(a);});
 bindActorSearch('month-actor-input','month-actor-results',function(a){
   var list=getMonthActors();
   if(list.some(function(x){return x.id===a.id;})){toast('Déjà dans tes acteurs du mois !');return;}
   list.push(a);svMonthActors();toast(a.name+' est ton acteur/actrice du mois 🌟');onActorsChanged();
 });
+
+/* ====== 🏆 CLASSEMENT DES INTERPRÈTES "LES PLUS COLLECTIONNÉES" ======
+   Un vrai profil fan par interprète, construit depuis TA collection : nombre de
+   scènes vues d'elle/lui, ta note moyenne, ses studios chez toi — pas un classement
+   public, juste le tien. Les noms viennent du champ casting (castFr/cast), rempli
+   automatiquement à l'ajout (et, pour les filles, via le prompt d'ajout aux favoris). */
+function perfStatsFromCollection(){
+  var by={};
+  items.forEach(function(i){
+    var c=(i.castFr||i.cast||'');
+    var names=c.split(',').map(function(s){return s.trim();}).filter(Boolean);
+    names.forEach(function(n){
+      var k=n.toLowerCase();
+      if(!by[k])by[k]={name:n,count:0,ratingSum:0,ratingN:0,studios:{}};
+      by[k].count++;
+      if(i.rating>0){by[k].ratingSum+=i.rating;by[k].ratingN++;}
+      if(i.networkName)by[k].studios[i.networkName]=1;
+    });
+  });
+  return Object.keys(by).map(function(k){
+    var b=by[k];
+    return {name:b.name,count:b.count,avgRating:b.ratingN?(b.ratingSum/b.ratingN):0,studios:Object.keys(b.studios)};
+  });
+}
+function renderPerformerRanking(){
+  var grid=document.getElementById('cat-actors-grid');if(!grid)return;
+  var stats=perfStatsFromCollection().sort(function(a,b){return b.count-a.count||b.avgRating-a.avgRating;});
+  if(!stats.length){grid.innerHTML='<div class="news-empty">Ajoute des scènes/films avec un casting rempli pour voir ton classement ici.</div>';return;}
+  grid.className='';
+  var photoByName={};favActors.forEach(function(a){photoByName[a.name.toLowerCase()]=a.photo;});
+  grid.innerHTML='<div class="perf-rank-list">'+stats.slice(0,80).map(function(p,i){
+    var ph=photoByName[p.name.toLowerCase()]||'';
+    return '<div class="perf-rank-row" data-prname="'+esc(p.name)+'">'
+      +'<span class="pr-rank">#'+(i+1)+'</span>'
+      +(ph?'<img class="pr-photo" src="'+esc(ph)+'" alt="">':'<div class="pr-photo pr-ph-ph">🎭</div>')
+      +'<div class="pr-info"><b>'+esc(p.name)+'</b><small>'+p.count+' scène'+(p.count>1?'s':'')+(p.avgRating?' · ⭐ '+p.avgRating.toFixed(1)+'/5':'')+(p.studios.length?' · '+esc(p.studios.slice(0,2).join(', '))+(p.studios.length>2?' +'+(p.studios.length-2):''):'')+'</small></div>'
+      +'</div>';
+  }).join('')+'</div>';
+  grid.querySelectorAll('[data-prname]').forEach(function(row){row.addEventListener('click',function(){openEntityPage({type:'actor',value:row.dataset.prname});});});
+}
 
 /* Leurs projets : filmographie de tes acteurs, à venir d'abord, hors collection/attentes */
 var actorsWho='all',_actorCreditsCache={};
@@ -8106,6 +8354,7 @@ function fetchActorCredits(pid){
 function loadActorProjects(){
   var grid=document.getElementById('cat-actors-grid');if(!grid)return;
   if(actorsWho==='dir'||actorsWho==='studio'){loadCrewProjects(actorsWho);return;}
+  if(actorsWho==='rank'){renderPerformerRanking();return;}
   var mine=allMyActors().filter(function(a){return actorsWho==='all'||a.kind===actorsWho;});
   if(!mine.length){grid.innerHTML='<div class="news-empty">Ajoute des acteurs au-dessus pour voir leurs projets ici.</div>';return;}
   grid.innerHTML='<div class="trend-loading">🎭 Recherche de leurs projets…</div>';
@@ -8358,7 +8607,7 @@ function drawAlerts(list,scored){
       var diff=monthDiff(dateVal);
       if(diff>=0&&diff<=14)badges+='<span class="alert-badge soon">🚨 Sort '+(diff===0?"aujourd'hui":('dans '+diff+' j.'))+'</span>';
     }
-    var typeBadge='<span class="cat-type-badge '+(mt==='tv'?'cat-type-tv':'cat-type-movie')+'">'+(mt==='tv'?'📺 Série':'🎬 Film')+'</span>';
+    var typeBadge='<span class="cat-type-badge '+(mt==='tv'?'cat-type-tv':'cat-type-movie')+'">'+(mt==='tv'?'🎬 Film':'🎥 Scène')+'</span>';
     var simBadge=(scored&&typeof r._score==='number')?buildSimilarityBadge(r._score):'';
     var tvPlaceholder=mt==='tv'?'<div data-tvstatus="'+key+'"></div>':'';
     return '<div class="reco-card trend-card-wrap" data-ckey="'+key+'">'
@@ -8402,7 +8651,7 @@ function renderMarathonDetail(){
   var html='<div class="saga-header"><h3>🏃 '+esc(m.name)+'</h3><button style="font-family:\'Fredoka\',sans-serif;font-size:.78rem;font-weight:700;padding:5px 12px;border-radius:999px;border:2px solid var(--raspberry);background:none;color:var(--raspberry);cursor:pointer;" data-mdel="'+m.id+'">Supprimer</button></div>';
   html+='<div class="marathon-stat-row"><div class="marathon-stat"><div class="ms-num">'+done+'/'+total+'</div><div class="ms-lbl">visionnés</div></div><div class="marathon-stat"><div class="ms-num">'+pct+'%</div><div class="ms-lbl">complété</div></div><div class="marathon-stat"><div class="ms-num">~'+Math.round(remainMin/60)+'h</div><div class="ms-lbl">restantes</div></div><div class="marathon-stat"><div class="ms-num">~'+Math.round(totMin/60)+'h</div><div class="ms-lbl">au total</div></div></div>';
   html+='<div class="marathon-progress-bar"><div class="marathon-progress-fill" style="width:'+pct+'%"></div></div>';
-  if(nextStep){html+='<div class="marathon-next">'+(nextStep.item.poster?'<img src="'+nextStep.item.poster+'" alt="">':'<div style="width:54px;height:78px;background:var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.6rem;">'+(nextStep.item.type==='serie'?'🎬':'🎥')+'</div>')+'<div class="mn-info"><div class="mn-label">⏭️ Prochain</div><div class="mn-title">'+esc(nextStep.item.title)+'</div><div class="mn-meta">'+(nextStep.item.year||'—')+' · '+(nextStep.item.type==='film'?'🎬 Film':'📺 Série')+'</div></div><button data-markdone="'+nextStep.item.id+'">✅ Vu&nbsp;!</button></div>';}
+  if(nextStep){html+='<div class="marathon-next">'+(nextStep.item.poster?'<img src="'+nextStep.item.poster+'" alt="">':'<div style="width:54px;height:78px;background:var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.6rem;">'+(nextStep.item.type==='serie'?'🎬':'🎥')+'</div>')+'<div class="mn-info"><div class="mn-label">⏭️ Prochain</div><div class="mn-title">'+esc(nextStep.item.title)+'</div><div class="mn-meta">'+(nextStep.item.year||'—')+' · '+(nextStep.item.type==='film'?'🎥 Scène':'🎬 Film')+'</div></div><button data-markdone="'+nextStep.item.id+'">✅ Vu&nbsp;!</button></div>';}
   else if(total){html+='<div class="marathon-next" style="justify-content:center"><div style="text-align:center"><div style="font-size:1.6rem">🎉</div><div class="mn-title">Marathon terminé&nbsp;!</div></div></div>';}
   html+='<div style="font-family:\'Fredoka\',sans-serif;font-size:.9rem;font-weight:700;color:var(--violet);margin:14px 0 8px;">Le parcours :</div>';
   if(stepsData.length){html+=stepsData.map(function(x,idx){return'<div class="marathon-step'+(x.step.done?' done':'')+(nextStep&&nextStep.item.id===x.item.id?' current':'')+'"><span class="mst-order">'+(idx+1)+'</span>'+(x.item.poster?'<img src="'+x.item.poster+'" alt="">':'<div style="width:30px;height:44px;background:var(--border);border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:.9rem;">'+(x.item.type==='serie'?'🎬':'🎥')+'</div>')+'<div class="mst-info"><div class="mst-title">'+esc(x.item.title)+'</div><div class="mst-meta">'+(x.item.year||'—')+'</div></div><button class="mst-mv" data-mup="'+x.item.id+'" title="Monter">▲</button><button class="mst-mv" data-mdn="'+x.item.id+'" title="Descendre">▼</button><button class="mst-check'+(x.step.done?' checked':'')+'\" data-mcheck="'+x.item.id+'\">'+(x.step.done?'✓':'')+'</button><button class="mst-rm" data-mrm="'+x.item.id+'">✕</button></div>';}).join('');}
@@ -8421,7 +8670,7 @@ function renderMarathonDetail(){
 
 /* ====== PIOCHE / FUN ====== */
 var funMode='wheel',wheelItems=[],wheelAngle=0,wheelSpinning=false,duelPool=[],duelCurrent=null,duelChallenger=null,duelIdx=0;
-document.querySelectorAll('.fun-mode-btn').forEach(function(b){b.addEventListener('click',function(){document.querySelectorAll('.fun-mode-btn').forEach(function(x){x.classList.remove('active');});b.classList.add('active');funMode=b.dataset.mode;document.getElementById('fun-wheel-mode').style.display=funMode==='wheel'?'block':'none';document.getElementById('fun-duel-mode').style.display=funMode==='duel'?'block':'none';document.getElementById('fun-suggest-mode').style.display=funMode==='suggest'?'block':'none';document.getElementById('fun-blindtest-mode').style.display=funMode==='blindtest'?'block':'none';document.getElementById('fun-synopsis-mode').style.display=funMode==='synopsis'?'block':'none';document.getElementById('fun-hilo-mode').style.display=funMode==='hilo'?'block':'none';document.getElementById('fun-tour-mode').style.display=funMode==='tour'?'block':'none';document.querySelector('.fun-filter-row').style.display=(funMode==='suggest'||funMode==='hilo')?'none':'flex';initFun();});});
+document.querySelectorAll('.fun-mode-btn').forEach(function(b){b.addEventListener('click',function(){document.querySelectorAll('.fun-mode-btn').forEach(function(x){x.classList.remove('active');});b.classList.add('active');funMode=b.dataset.mode;document.getElementById('fun-wheel-mode').style.display=funMode==='wheel'?'block':'none';document.getElementById('fun-duel-mode').style.display=funMode==='duel'?'block':'none';document.getElementById('fun-suggest-mode').style.display=funMode==='suggest'?'block':'none';document.getElementById('fun-blindtest-mode').style.display=funMode==='blindtest'?'block':'none';document.getElementById('fun-perfblind-mode').style.display=funMode==='perfblind'?'block':'none';document.getElementById('fun-synopsis-mode').style.display=funMode==='synopsis'?'block':'none';document.getElementById('fun-hilo-mode').style.display=funMode==='hilo'?'block':'none';document.getElementById('fun-tour-mode').style.display=funMode==='tour'?'block':'none';document.querySelector('.fun-filter-row').style.display=(funMode==='suggest'||funMode==='hilo'||funMode==='perfblind')?'none':'flex';initFun();});});
 document.querySelectorAll('.syn-toggle-btn[data-synmode]').forEach(function(b){b.addEventListener('click',function(){document.querySelectorAll('.syn-toggle-btn[data-synmode]').forEach(function(x){x.classList.remove('active');});b.classList.add('active');synInputMode=b.dataset.synmode;startSynopsisGame();});});
 document.querySelectorAll('.syn-toggle-btn[data-syndiff]').forEach(function(b){b.addEventListener('click',function(){document.querySelectorAll('.syn-toggle-btn[data-syndiff]').forEach(function(x){x.classList.remove('active');});b.classList.add('active');synDifficulty=b.dataset.syndiff;startSynopsisGame();});});
 document.getElementById('fun-source').addEventListener('change',initFun);
@@ -8440,7 +8689,7 @@ function getFunPool(){
   else if(src==='fav')list=list.filter(function(i){return i.fav;});
   return list;
 }
-function initFun(){if(funMode==='wheel')drawWheel();else if(funMode==='duel')startDuel();else if(funMode==='blindtest')startBlindTest();else if(funMode==='synopsis')startSynopsisGame();else if(funMode==='hilo')startHiLo();else if(funMode==='tour')showTourSetup();else renderSuggest();}
+function initFun(){if(funMode==='wheel')drawWheel();else if(funMode==='duel')startDuel();else if(funMode==='blindtest')startBlindTest();else if(funMode==='perfblind')startPerfBlindTest();else if(funMode==='synopsis')startSynopsisGame();else if(funMode==='hilo')startHiLo();else if(funMode==='tour')showTourSetup();else renderSuggest();}
 
 /* ====== POUR CE SOIR : DÉCOUVERTE (titres pas encore dans ta liste) ====== */
 var discoverPool=[];
@@ -8496,7 +8745,7 @@ function showNextDiscover(){
     +(it.poster?'<img class="sug-poster" src="'+it.poster+'" alt="">':'<div class="sug-poster sug-noposter">'+(it.type==='serie'?'🎬':'🎥')+'</div>')
     +'<div class="sug-info"><div class="sug-eyebrow">🎯 À découvrir ce soir</div>'
     +'<div class="sug-title">'+esc(it.title)+'</div>'
-    +'<div class="sug-meta">'+(it.year||'—')+' · '+(it.type==='film'?'🎬 Film':'📺 Série')+' '+note+'</div>'
+    +'<div class="sug-meta">'+(it.year||'—')+' · '+(it.type==='film'?'🎥 Scène':'🎬 Film')+' '+note+'</div>'
     +reason
     +'<div class="sug-actions"><button class="sug-trailer">▶️ Bande-annonce</button><button class="sug-add">➕ Ajouter à «&nbsp;À voir&nbsp;»</button><button class="sug-another">🔄 Une autre</button></div>'
     +'</div></div>';
@@ -8639,7 +8888,7 @@ function btGuess(id,btn){
   btDrawPoster(document.getElementById('bt-canvas'),btState.answer.poster,BT_LEVELS.length-1);
   document.getElementById('bt-wrap').classList.add('reveal');
   var a=btState.answer;
-  document.getElementById('bt-reveal').innerHTML=esc(a.title)+'<small>'+(a.year||'')+' · '+(a.type==='film'?'🎬 Film':'📺 Série')+'</small>';
+  document.getElementById('bt-reveal').innerHTML=esc(a.title)+'<small>'+(a.year||'')+' · '+(a.type==='film'?'🎥 Scène':'🎬 Film')+'</small>';
   if(correct){
     var pts=Math.max(1,3-btState.hints);
     btScore+=pts;btStreak++;if(btStreak>btBest){btBest=btStreak;localStorage.setItem('ct_bt_best',btBest);}
@@ -8651,9 +8900,67 @@ function btGuess(id,btn){
     btStreak=0;sfx.click&&sfx.click();
     document.getElementById('bt-streak').textContent=0;
   }
-  var act=document.querySelector('.bt-actions');
+  var act=document.querySelector('#bt-stage .bt-actions');
   act.innerHTML='<button class="bt-next-btn" id="bt-next">'+(correct?'✅ +'+Math.max(1,3-btState.hints)+' pts — Suivant ▶':'Suivant ▶')+'</button>';
   document.getElementById('bt-next').addEventListener('click',startBlindTest);
+}
+
+/* ====== BLIND TEST INTERPRÈTE (photo floutée, parmi tes favoris) ====== */
+var pbState=null,pbScore=0,pbStreak=0;
+var pbBest=parseInt(localStorage.getItem('ct_pb_best')||'0')||0;
+function pbShuffle(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}return a;}
+function pbPool(){return favActors.filter(function(a){return a.photo;});}
+function startPerfBlindTest(){
+  var stage=document.getElementById('pb-stage');if(!stage)return;
+  var pool=pbPool();
+  if(pool.length<4){stage.innerHTML='<div class="empty-state" style="grid-column:1/-1"><span class="emoji">👤</span><h3>Il faut au moins 4 favorites avec photo</h3><p>Ajoute des interprètes à tes favoris (la recherche, ou le prompt proposé à l\'ajout d\'une scène, remplissent la photo automatiquement), puis reviens jouer&nbsp;!</p></div>';return;}
+  var answer=pool[Math.floor(Math.random()*pool.length)];
+  var others=pbShuffle(pool.filter(function(a){return a.id!==answer.id;}));
+  var seen={};seen[(''+answer.name).toLowerCase()]=1;
+  var distract=[];
+  others.forEach(function(a){if(distract.length>=3)return;var k=(''+a.name).toLowerCase();if(seen[k])return;seen[k]=1;distract.push(a);});
+  var choices=pbShuffle([answer].concat(distract));
+  pbState={answer:answer,level:0,hints:0,answered:false};
+  stage.innerHTML=''
+    +'<div class="bt-scoreline"><span>Score&nbsp;: <b id="pb-score">'+pbScore+'</b></span><span>🔥 Série&nbsp;: <b id="pb-streak">'+pbStreak+'</b></span><span>🏆 Record&nbsp;: <b id="pb-best">'+pbBest+'</b></span></div>'
+    +'<div class="bt-canvas-wrap" id="pb-wrap"><canvas id="pb-canvas" width="300" height="300"></canvas></div>'
+    +'<div class="bt-reveal-title" id="pb-reveal"></div>'
+    +'<div class="bt-choices" id="pb-choices">'+choices.map(function(a){return'<button class="bt-choice" data-pb="'+esc(''+a.id)+'">'+esc(a.name)+'</button>';}).join('')+'</div>'
+    +'<div class="bt-actions"><button class="bt-hint-btn" id="pb-hint">🔍 Indice (rendre + net)</button></div>';
+  btDrawPoster(document.getElementById('pb-canvas'),answer.photo,0);
+  document.getElementById('pb-hint').addEventListener('click',pbHint);
+  document.querySelectorAll('#pb-choices .bt-choice').forEach(function(b){b.addEventListener('click',function(){pbGuess(b.dataset.pb,b);});});
+}
+function pbHint(){
+  if(!pbState||pbState.answered)return;
+  if(pbState.level>=BT_LEVELS.length-2)return;
+  pbState.level++;pbState.hints++;sfx.pop&&sfx.pop();
+  btDrawPoster(document.getElementById('pb-canvas'),pbState.answer.photo,pbState.level);
+  if(pbState.level>=BT_LEVELS.length-2)document.getElementById('pb-hint').textContent='🔍 Plus d\'indice';
+}
+function pbGuess(id,btn){
+  if(!pbState||pbState.answered)return;
+  pbState.answered=true;
+  var correct=(''+id)===(''+pbState.answer.id);
+  document.querySelectorAll('#pb-choices .bt-choice').forEach(function(b){b.disabled=true;if((''+b.dataset.pb)===(''+pbState.answer.id))b.classList.add('correct');});
+  if(!correct)btn.classList.add('wrong');
+  btDrawPoster(document.getElementById('pb-canvas'),pbState.answer.photo,BT_LEVELS.length-1);
+  document.getElementById('pb-wrap').classList.add('reveal');
+  document.getElementById('pb-reveal').innerHTML=esc(pbState.answer.name);
+  if(correct){
+    var pts=Math.max(1,3-pbState.hints);
+    pbScore+=pts;pbStreak++;if(pbStreak>pbBest){pbBest=pbStreak;localStorage.setItem('ct_pb_best',pbBest);}
+    confetti();
+    document.getElementById('pb-score').textContent=pbScore;
+    document.getElementById('pb-streak').textContent=pbStreak;
+    document.getElementById('pb-best').textContent=pbBest;
+  }else{
+    pbStreak=0;sfx.click&&sfx.click();
+    document.getElementById('pb-streak').textContent=0;
+  }
+  var act=document.querySelector('#pb-stage .bt-actions');
+  act.innerHTML='<button class="bt-next-btn" id="pb-next">'+(correct?'✅ +'+Math.max(1,3-pbState.hints)+' pts — Suivant ▶':'Suivant ▶')+'</button>';
+  document.getElementById('pb-next').addEventListener('click',startPerfBlindTest);
 }
 
 /* ====== DEVINE LE FILM (synopsis) ====== */
@@ -8719,7 +9026,7 @@ function startSynopsisGame(){
   }
   var answer=pool[Math.floor(Math.random()*pool.length)];
   synState={answer:answer,answered:false};
-  var metaHint='<div class="syn-meta-hint"><span>'+(answer.type==='film'?'🎬 Film':'📺 Série')+'</span><span>'+(answer.year||'Année&nbsp;?')+'</span></div>';
+  var metaHint='<div class="syn-meta-hint"><span>'+(answer.type==='film'?'🎥 Scène':'🎬 Film')+'</span><span>'+(answer.year||'Année&nbsp;?')+'</span></div>';
   var displaySynopsis=synDifficulty==='hard'?obfuscateSynopsis(answer.title,answer.synopsis):answer.synopsis;
   var card='<div class="syn-card"><div class="syn-text">'+esc(displaySynopsis)+'</div></div>';
   var html=''
@@ -8782,7 +9089,7 @@ function synGuess(correct,btn){
     if(!correct&&btn)btn.classList.add('wrong');
   }
   if(a.poster){var pImg=document.getElementById('syn-poster');pImg.src=a.poster;pImg.style.display='block';}
-  document.getElementById('syn-reveal').innerHTML=esc(a.title)+'<small>'+(a.year||'')+' · '+(a.type==='film'?'🎬 Film':'📺 Série')+'</small>';
+  document.getElementById('syn-reveal').innerHTML=esc(a.title)+'<small>'+(a.year||'')+' · '+(a.type==='film'?'🎥 Scène':'🎬 Film')+'</small>';
   if(correct){
     synScore++;synStreak++;if(synStreak>synBest){synBest=synStreak;localStorage.setItem('ct_syn_best',synBest);}
     confetti();
@@ -9179,7 +9486,7 @@ function drawCatGrid(list){
     var tvPlaceholder=mt==='tv'?'<div data-tvstatus="'+key+'"></div>':'';
     return '<div class="reco-card trend-card-wrap" data-ckey="'+key+'">'
       +(poster?'<img src="'+poster+'" alt="" loading="lazy">':'<div style="aspect-ratio:2/3;display:flex;align-items:center;justify-content:center;font-size:1.8rem;background:var(--input-bg)">'+(mt==='tv'?'🎬':'🎥')+'</div>')
-      +'<div class="rc-body"><div class="rc-title">'+esc(t)+'</div><div class="rc-meta">'+(y||'—')+(r.vote_average?' · ⭐'+r.vote_average.toFixed(1):'')+' · '+(mt==='tv'?'📺 Série':'🎬 Film')+'</div>'
+      +'<div class="rc-body"><div class="rc-title">'+esc(t)+'</div><div class="rc-meta">'+(y||'—')+(r.vote_average?' · ⭐'+r.vote_average.toFixed(1):'')+' · '+(mt==='tv'?'🎬 Film':'🎥 Scène')+'</div>'
       +tvPlaceholder
       +'<div class="trend-actions"><button class="trend-add-avoir" data-cwish="'+key+'">📌 M\'intéresse</button></div></div></div>';
   }).join('');
@@ -9232,7 +9539,7 @@ function openCatModal(key){
   var year=((mt==='movie'?r.release_date:r.first_air_date)||'').slice(0,4);
   var poster=r.poster_path?''+r.poster_path:'';
   var pseudoId='cat_'+mt+'_'+r.id;
-  var typeLbl=mt==='tv'?'📺 Série':'🎬 Film';
+  var typeLbl=mt==='tv'?'🎬 Film':'🎥 Scène';
   var html='<div class="bm-hero">'
     +'<div class="bm-cover" '+(poster?'style="background-image:url('+poster+')"':'')+'>'+(poster?'':'🎬')+'</div>'
     +'<div class="bm-meta"><h2>'+esc(title)+'</h2>'
@@ -10821,7 +11128,7 @@ function pepDetailHtml(p,small){
   var inCol=items.some(function(i){return i.tmdbId===p.id&&(i.tmdbType==='tv'?'tv':'movie')===p.media_type;});
   var key=p.media_type+'_'+p.id;
   return '<div class="pepite-body'+(small?' small':'')+'"><img src="'+p.poster_path+'" alt=""><div>'
-    +'<h3>'+esc(p.title||p.name)+'</h3><div class="pepite-meta">'+(p.media_type==='tv'?'📺 Série':'🎬 Film')+(y?' · '+y:'')+' · ⭐ '+(p.vote_average||0).toFixed(1)+' · seulement '+(p.vote_count||0)+' votes</div>'
+    +'<h3>'+esc(p.title||p.name)+'</h3><div class="pepite-meta">'+(p.media_type==='tv'?'🎬 Film':'🎥 Scène')+(y?' · '+y:'')+' · ⭐ '+(p.vote_average||0).toFixed(1)+' · seulement '+(p.vote_count||0)+' votes</div>'
     +(small?'':'<div class="pepite-why">'+(p.kind==='actor'?'🎭 Un rôle méconnu de <b>'+esc(p.actor)+'</b>':p.kind==='decade'?'📼 La pépite des années '+String(p.decade).slice(2)+(p.seed?' · pour les fans de <b>'+esc(p.seed)+'</b>':''):(p.seed?'Parce que tu as aimé <b>'+esc(p.seed)+'</b>':'Choisie selon tes goûts'))+(p.kw&&p.kind!=='actor'&&p.kind!=='decade'?' · thème « '+esc(p.kw)+' »':'')+'</div>')
     +(p.note?'<div class="pepite-meta">💡 '+esc(p.note)+'</div>':'')
     +'<div data-pepsub="'+key+'"></div>'
@@ -11118,8 +11425,11 @@ function renderCrewChips(){
   var cnt=document.getElementById('crew-count');if(cnt)cnt.textContent=(favCrew.directors.length+favCrew.studios.length)?'('+(favCrew.directors.length+favCrew.studios.length)+')':'';
   [['dir-chips','directors','🎬'],['studio-chips','studios','🏢']].forEach(function(c){
     var box=document.getElementById(c[0]);if(!box)return;var list=favCrew[c[1]];
-    box.innerHTML=list.length?list.map(function(a){return '<span class="actor-chip">'+(a.photo?'<img src="'+a.photo+'" alt="" style="'+(c[1]==='studios'?'border-radius:4px;object-fit:contain;background:#fff':'')+'">':c[2])+' '+esc(a.name)+' <button data-crm="'+c[1]+':'+a.id+'">✕</button></span>';}).join(''):'<div style="color:var(--muted2);font-size:.82rem">Personne pour l\'instant.</div>';
-    box.querySelectorAll('[data-crm]').forEach(function(b){b.addEventListener('click',function(){var pr=b.dataset.crm.split(':');favCrew[pr[0]]=favCrew[pr[0]].filter(function(x){return x.id!==parseInt(pr[1]);});svFavCrew();renderCrewChips();});});
+    box.innerHTML=list.length?list.map(function(a){return '<span class="actor-chip">'+(a.photo?'<img src="'+a.photo+'" alt="" style="'+(c[1]==='studios'?'border-radius:4px;object-fit:contain;background:#fff':'')+'">':c[2])+' '+esc(a.name)+' <button data-crm="'+esc(c[1]+':'+a.id)+'">✕</button></span>';}).join(''):'<div style="color:var(--muted2);font-size:.82rem">Personne pour l\'instant.</div>';
+    // Les studios ThePornDB/Eporner sont identifiés par leur NOM (chaîne), pas par un id
+    // numérique comme les réalisateurs/TMDB — on ne découpe donc qu'au premier ":" et on
+    // ne force parseInt que pour les réalisateurs.
+    box.querySelectorAll('[data-crm]').forEach(function(b){b.addEventListener('click',function(){var pr=b.dataset.crm,ci=pr.indexOf(':'),kd=pr.slice(0,ci),rawId=pr.slice(ci+1);favCrew[kd]=favCrew[kd].filter(function(x){return x.id!==(kd==='studios'?rawId:parseInt(rawId));});svFavCrew();renderCrewChips();});});
   });
 }
 function bindCrewSearch(inputId,resultsId,kind){
@@ -11134,9 +11444,10 @@ function bindCrewSearch(inputId,resultsId,kind){
         list=list.slice(0,6);
         if(!list.length){res.innerHTML='<div class="search-loading">Aucun résultat.</div>';return;}
         res.innerHTML=list.map(function(p){var ph=kind==='studios'?(p.logo_path?''+p.logo_path:''):(p.profile_path?''+p.profile_path:'');
-          return '<div class="search-result-item" data-cid="'+p.id+'" data-cname="'+esc(p.name)+'" data-cph="'+ph+'" style="display:flex;gap:10px;align-items:center;padding:8px 12px;cursor:pointer">'+(ph?'<img src="'+ph+'" style="width:34px;height:34px;object-fit:'+(kind==='studios'?'contain;background:#fff;border-radius:4px':'cover;border-radius:50%')+'">':(kind==='studios'?'🏢':'🎬'))+'<div><b>'+esc(p.name)+'</b>'+(p.origin_country?' <span style="color:var(--muted2);font-size:.72rem">'+esc(p.origin_country)+'</span>':'')+'</div></div>';}).join('');
+          return '<div class="search-result-item" data-cid="'+esc(''+p.id)+'" data-cname="'+esc(p.name)+'" data-cph="'+ph+'" style="display:flex;gap:10px;align-items:center;padding:8px 12px;cursor:pointer">'+(ph?'<img src="'+ph+'" style="width:34px;height:34px;object-fit:'+(kind==='studios'?'contain;background:#fff;border-radius:4px':'cover;border-radius:50%')+'">':(kind==='studios'?'🏢':'🎬'))+'<div><b>'+esc(p.name)+'</b>'+(p.origin_country?' <span style="color:var(--muted2);font-size:.72rem">'+esc(p.origin_country)+'</span>':'')+'</div></div>';}).join('');
         res.querySelectorAll('[data-cid]').forEach(function(el){el.addEventListener('click',function(){
-          var id=parseInt(el.dataset.cid);
+          // Studios ThePornDB/Eporner = id texte (le nom) ; réalisateurs = id numérique TMDB.
+          var id=kind==='studios'?el.dataset.cid:parseInt(el.dataset.cid);
           if(favCrew[kind].some(function(x){return x.id===id;}))toast('Déjà dans ta liste !');
           else{favCrew[kind].push({id:id,name:el.dataset.cname,photo:el.dataset.cph});svFavCrew();renderCrewChips();toast(el.dataset.cname+' ajouté·e ✓');_platformCache={};}
           res.classList.remove('show');inp.value='';
@@ -11148,6 +11459,47 @@ function bindCrewSearch(inputId,resultsId,kind){
 }
 bindCrewSearch('dir-input','dir-results','directors');
 bindCrewSearch('studio-input','studio-results','studios');
+/* ====== 🏢 STUDIO SUIVI → nouveautés auto dans les Attentes ======
+   "Suivre" un studio (favCrew.studios) et faire tomber ses nouvelles sorties
+   ThePornDB dans les Attentes (wishlist), comme on "s'abonne" à une série.
+   Eporner n'a pas de studio par vidéo (toujours "Eporner") donc il n'est pas
+   concerné par ce suivi — uniquement ThePornDB, qui a de vrais noms de site. */
+function syncFollowedStudios(silent){
+  if(!favCrew.studios.length){if(!silent)toast('Suis d\'abord un studio dans « 🏢 Studios suivis » juste au-dessus.');return;}
+  var seenTitles={};
+  items.forEach(function(i){seenTitles[(i.title||'').toLowerCase()+'|'+(i.type||'')]=1;});
+  wishlist.forEach(function(w){seenTitles[(w.title||'').toLowerCase()+'|'+(w.tmdbType==='tv'?'serie':'film')]=1;});
+  var calls=[];
+  favCrew.studios.forEach(function(st){
+    ['movie','tv'].forEach(function(mt){
+      calls.push(fetch('https://api.themoviedb.org/3/discover/'+mt+'?with_companies='+encodeURIComponent(st.id)).then(function(r){return r.json();}).then(function(d){return (d.results||[]).map(function(x){return Object.assign({},x,{media_type:mt,_studio:st.name});});}).catch(function(){return [];}));
+    });
+  });
+  if(!silent)toast('🔎 Recherche des nouveautés de tes studios suivis…');
+  Promise.all(calls).then(function(lists){
+    var added=0;
+    lists.forEach(function(l){l.forEach(function(r){
+      var t=r.media_type==='movie'?r.title:r.name;if(!t)return;
+      var typ=r.media_type==='movie'?'film':'serie';
+      var tkey=t.toLowerCase()+'|'+typ;
+      if(seenTitles[tkey])return;seenTitles[tkey]=1;
+      var date=r.media_type==='movie'?r.release_date:r.first_air_date;
+      wishlist.unshift({id:Date.now()+Math.random()*99|0,tmdbId:r.id,tmdbType:r.media_type,title:t,year:(date||'').slice(0,4),releaseDate:date||'',season:null,poster:r.poster_path?''+r.poster_path:'',synopsis:r.overview||'',director:'',hype:3,addedAt:Date.now(),fromStudio:r._studio});
+      added++;
+    });});
+    if(added){svW();try{renderWishGrid();}catch(_){}}
+    toast(added?('🏢 '+added+' nouveauté'+(added>1?'s':'')+' de tes studios suivis ajoutée'+(added>1?'s':'')+' à tes Attentes ✓'):(silent?'':'Rien de nouveau pour l\'instant.'));
+  });
+}
+var STUDIO_SYNC_DAY_K='stStudioSyncDay';
+function autoSyncFollowedStudiosOnce(){
+  if(!favCrew.studios.length)return;
+  var today=todayStr();
+  if(localStorage.getItem(STUDIO_SYNC_DAY_K)===today)return;
+  try{localStorage.setItem(STUDIO_SYNC_DAY_K,today);}catch(_){}
+  syncFollowedStudios(true);
+}
+(function(){var b=document.getElementById('studio-sync-btn');if(b)b.addEventListener('click',function(){syncFollowedStudios(false);});})();
 function loadCrewProjects(kind){
   var grid=document.getElementById('cat-actors-grid');if(!grid)return;
   var list=kind==='dir'?favCrew.directors:favCrew.studios;
@@ -11826,7 +12178,7 @@ function ivReview(o,groups,src,defStatus){
     if(!found.length){box.innerHTML='<div class="soc-t">😕 Je n\'ai reconnu aucun titre.</div>';return;}
     box.innerHTML='<div class="soc-t">'+found.length+' titre(s) reconnu(s). Décoche ce qui est faux, puis importe.</div><div class="iv-list">'+found.map(function(m,k){
       var info=m.tmdbType==='tv'&&m.g.seasons?Object.keys(m.g.seasons).map(function(s){return 'S'+s+' : '+m.g.seasons[s].length+' ép.';}).join(' · '):(m.g.count>1?'vu '+m.g.count+' fois':'');
-      return '<label class="iv-row'+(m.ex?' ex':'')+'"><input type="checkbox" data-ivk="'+k+'"'+(m.on?' checked':'')+'><img src="'+(m.poster||'')+'" alt=""><div class="iv-m"><b>'+esc(m.title)+'</b> <small>'+(m.year||'')+' · '+(m.tmdbType==='tv'?'📺 Série':'🎬 Film')+(m.exact?'':' · <span style="color:var(--orange)">à vérifier</span>')+'</small><div class="iv-i">'+esc(m.g.name!==m.title?'« '+m.g.name+' » ':'')+info+(m.ex?' · déjà dans ta collection':'')+'</div></div>'
+      return '<label class="iv-row'+(m.ex?' ex':'')+'"><input type="checkbox" data-ivk="'+k+'"'+(m.on?' checked':'')+'><img src="'+(m.poster||'')+'" alt=""><div class="iv-m"><b>'+esc(m.title)+'</b> <small>'+(m.year||'')+' · '+(m.tmdbType==='tv'?'🎬 Film':'🎥 Scène')+(m.exact?'':' · <span style="color:var(--orange)">à vérifier</span>')+'</small><div class="iv-i">'+esc(m.g.name!==m.title?'« '+m.g.name+' » ':'')+info+(m.ex?' · déjà dans ta collection':'')+'</div></div>'
         +'<select data-ivs="'+k+'"><option value="termine"'+(m.status==='termine'?' selected':'')+'>✅ Vu</option><option value="en_cours"'+(m.status==='en_cours'?' selected':'')+'>▶️ En cours</option><option value="a_voir"'+(m.status==='a_voir'?' selected':'')+'>📌 À voir</option></select></label>';
     }).join('')+'</div><div class="soc-row"><button class="soc-btn2" id="iv-x">Annuler</button><button class="soc-btn" id="iv-do">📥 Importer</button></div>';
     box.querySelectorAll('[data-ivk]').forEach(function(c){c.onchange=function(){found[+c.dataset.ivk].on=c.checked;};});
@@ -16570,7 +16922,7 @@ function platformCardHtml(r,todayS,addAttr){
   return '<div class="pf-card trend-card-wrap" data-ckey="'+key+'">'
     +(poster?'<img src="'+poster+'" alt="" loading="lazy">':'<div class="pf-noposter">'+(mt==='tv'?'🎬':'🎥')+'</div>')
     +'<div class="pf-body">'
-    +'<div class="pf-top"><span class="cat-type-badge '+(mt==='tv'?'cat-type-tv':'cat-type-movie')+'">'+(mt==='tv'?'📺 Série':'🎬 Film')+'</span>'
+    +'<div class="pf-top"><span class="cat-type-badge '+(mt==='tv'?'cat-type-tv':'cat-type-movie')+'">'+(mt==='tv'?'🎬 Film':'🎥 Scène')+'</span>'
     +'<span class="pf-date'+(isFuture?' pf-future':'')+'">'+(isFuture?'📅 ':'')+dateLbl+'</span></div>'
     +'<div class="pf-title">'+esc(t)+'</div>'
     +(r._season?'<div class="pf-season">'+esc(r._season)+'</div>':'')
@@ -17337,6 +17689,7 @@ renderStatusNotifs();
 renderEpisodeNotifs();
 setTimeout(function(){try{scanSeriesStatusChanges();}catch(_){}},1800);
 setTimeout(function(){try{scanWishlistUpdates();}catch(_){}},2600);
+setTimeout(function(){try{autoSyncFollowedStudiosOnce();}catch(_){}},3200);
 setTimeout(function(){try{backfillOriginalTitles();}catch(_){}},3600);
 setTimeout(function(){try{
   if(_movedFilms.length)toast('🎬 '+_movedFilms.length+' film'+(_movedFilms.length>1?'s sortis ajoutés':' sorti ajouté')+' à « À voir »\u00a0!');
@@ -18314,7 +18667,7 @@ function uvRender(){var v=document.getElementById('view-saga'),def=_uv.def,L=_uv
     +(nextIdx>=0?'<button class="sp-next" id="uv-next">▶ La suite pour toi : '+esc(ord[nextIdx].t)+'</button>':'')+'</div></div>'
     +'<div class="uv-bar"><div class="uv-seg">'+(def.chrono?'<button data-uvm="chrono" class="'+(_uv.mode==='chrono'?'on':'')+'">⏳ Ordre de l\'histoire</button>':'')+'<button data-uvm="sortie" class="'+(_uv.mode==='sortie'?'on':'')+'">📽️ Ordre de sortie</button></div><div class="uv-seg"><button data-uvv="list" class="'+(_uv.view==='list'?'on':'')+'">🎞️ Liste</button><button data-uvv="graph" class="'+(_uv.view==='graph'?'on':'')+'">🕸️ Graphe des liens</button></div><label class="uv-sp"><input type="checkbox" id="uv-spoil"'+(_uv.spoil?' checked':'')+'> 🙈 Sans spoiler</label></div>'
     +(_uv.view==='graph'?'<div class="uv-gwrap" id="uv-g">'+(_uv.E?'':'<div class="uv-load">🕸️ Je cherche les acteurs en commun pour relier les titres…</div>')+'</div>':'<div class="uv-list">'+ord.map(function(x,i){var m=mine[x.k],st=m?(m.status==='termine'?'seen':m.status==='en_cours'?'cur':'own'):'miss',fut=x.d>today,hide=_uv.spoil&&st!=='seen'&&i!==nextIdx&&!fut;
-      return '<div class="uv-it '+st+(i===nextIdx?' next':'')+(hide?' hide':'')+'" data-uvk="'+x.k+'"><div class="uv-n">'+(i+1)+'</div><div class="uv-img" style="background-image:url('+(x.b?''+x.b:x.p?''+x.p:'')+')">'+(hide?'<span class="uv-lock">🙈</span>':'')+'</div><div class="uv-tx"><b>'+esc(x.t)+'</b><small>'+(x.mt==='tv'?'📺 Série':'🎬 Film')+' · '+x.y+(def.lanes?' · '+esc(uvLaneNames(def)[x._l]):'')+'</small>'+(hide?'<p class="uv-o">Résumé caché pour ne pas te spoiler. Regarde d\'abord les titres d\'avant 😉</p>':x.o?'<p class="uv-o">'+esc(ivCut(x.o,170))+'</p>':'')+'</div><div class="uv-st">'+(st==='seen'?'✔ Vu':st==='cur'?'▶ En cours':st==='own'?'📌 À voir':fut?'⏳ '+new Date(x.d+'T12:00').toLocaleDateString('fr-FR'):'<button class="soc-btn2" data-uvadd="'+x.k+'">➕</button>')+'</div></div>';}).join('')+'</div>');
+      return '<div class="uv-it '+st+(i===nextIdx?' next':'')+(hide?' hide':'')+'" data-uvk="'+x.k+'"><div class="uv-n">'+(i+1)+'</div><div class="uv-img" style="background-image:url('+(x.b?''+x.b:x.p?''+x.p:'')+')">'+(hide?'<span class="uv-lock">🙈</span>':'')+'</div><div class="uv-tx"><b>'+esc(x.t)+'</b><small>'+(x.mt==='tv'?'🎬 Film':'🎥 Scène')+' · '+x.y+(def.lanes?' · '+esc(uvLaneNames(def)[x._l]):'')+'</small>'+(hide?'<p class="uv-o">Résumé caché pour ne pas te spoiler. Regarde d\'abord les titres d\'avant 😉</p>':x.o?'<p class="uv-o">'+esc(ivCut(x.o,170))+'</p>':'')+'</div><div class="uv-st">'+(st==='seen'?'✔ Vu':st==='cur'?'▶ En cours':st==='own'?'📌 À voir':fut?'⏳ '+new Date(x.d+'T12:00').toLocaleDateString('fr-FR'):'<button class="soc-btn2" data-uvadd="'+x.k+'">➕</button>')+'</div></div>';}).join('')+'</div>');
   v.querySelector('#uv-back').onclick=function(){var b=document.querySelector('.nav-btn[data-view="foryou"]');if(b)b.click();};
   var nb=v.querySelector('#uv-next');if(nb)nb.onclick=function(){uvShow(ord[nextIdx]);};
   v.querySelectorAll('[data-uvm]').forEach(function(b){b.onclick=function(){_uv.mode=b.dataset.uvm;uvRender();};});
