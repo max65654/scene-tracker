@@ -1247,6 +1247,10 @@ body.dark .fy-actors-head{color:#C9A8FF;}
 .actr-heart.on{background:rgba(255,77,109,.9);}
 .actr-del{position:absolute;top:8px;left:8px;border:none;background:rgba(10,6,20,.5);color:#fff;width:26px;height:26px;border-radius:50%;font-size:.78rem;cursor:pointer;opacity:0;transition:opacity .15s;z-index:2;}
 .actress-card:hover .actr-del{opacity:1;}
+/* Sans ça, ce bouton restait invisible (opacity:0) et donc injoignable au doigt sur
+   mobile/tablette, qui n'a pas de :hover — même repli déjà utilisé pour la croix de
+   suppression des cartes de la bibliothèque (.movie-card .delete-btn) juste au-dessus. */
+@media(hover:none){.actr-del{opacity:1;}}
 .actr-name{font-family:'Fredoka',sans-serif;font-weight:700;font-size:.86rem;padding:8px 10px 2px;text-align:center;color:var(--ink);}
 .actr-stars{display:flex;justify-content:center;gap:2px;font-size:1rem;padding-bottom:2px;}
 .actr-star{cursor:pointer;}
@@ -1393,7 +1397,7 @@ body.dark .resume-card .rc-head{color:#C9A8FF;}
 .sc-sound-btn:hover{background:rgba(0,0,0,.78);transform:scale(1.08);}
 .sc-video-wrap iframe,.modal-video-wrap iframe,.sc-video{position:absolute;border:0;pointer-events:none;}
 .vid-shield{position:absolute;inset:0;background:transparent;pointer-events:auto;cursor:default;}
-.modal-hero{position:relative;overflow:hidden;}
+.modal-hero{position:relative;overflow:hidden;min-height:220px;}
 .modal-video-wrap{position:absolute;inset:0;overflow:hidden;opacity:0;transition:opacity .8s ease;pointer-events:none;}
 .modal-video-wrap.playing{opacity:1;}
 .modal-sound-btn{position:absolute;bottom:12px;right:14px;z-index:4;width:42px;height:42px;border-radius:50%;border:none;background:rgba(0,0,0,.55);color:#fff;font-size:1.05rem;cursor:pointer;align-items:center;justify-content:center;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);transition:background .15s,transform .15s;}
@@ -4793,10 +4797,9 @@ function renderLibrary(){
       +'</div>';
     return '<div class="movie-card" data-id="'+item.id+'" style="--i:'+Math.min(idx,24)+'">'
       +'<div class="poster-wrap'+(item.posterFormat==='landscape'?' landscape':'')+'">'
-      +'<img src="'+(item.poster||genPosterUrl(item.title,item.type))+'" alt="">'
+      +'<img src="'+(item.poster||genPosterUrl(item.title,item.type))+'" alt="" onerror="posterImgError(this,'+item.id+')">'
       +'<span class="type-badge '+item.type+(item.cartoon?' cartoon':'')+'">'+(item.cartoon?'🎨 ':'')+(item.type==='film'?'Scène':'Film')+'</span>'
       +(item.fav?'<span class="fav-badge">❤️</span>':'')
-      +'<button class="landscape-toggle'+(item.posterFormat==='landscape'?' active':'')+'" data-landscape="'+item.id+'" title="'+(item.posterFormat==='landscape'?'Repasser en portrait':'Passer en paysage 16:9')+'">🖥️</button>'
       +(item.hasLocalVideo?'<button class="vid-quick-play" data-vidquick="'+item.id+'" title="Lire l\'extrait vidéo perso">🎥</button>':'')
       +'<button class="rewatch-toggle'+(item.toRewatch?' active':'')+'" data-rewatch="'+item.id+'" title="'+(item.toRewatch?'Sur la liste à revoir':'Marquer à revoir')+'">🔁</button>'
       +(item.personalNotes?'<span class="note-badge" title="">📌<span class="note-tip">'+esc(item.personalNotes)+'</span></span>':'')
@@ -5418,7 +5421,7 @@ function openModal(id){
   // cine-tracker, non pertinente ici).
   var hasTabs=false;
   document.getElementById('modal-content').innerHTML=
-    '<div class="modal-hero" id="modal-hero">'+'<img class="modal-poster" id="modal-hero-img" src="'+((item.locked&&item.banner)||item.poster||'')+'" alt=""'+(item.poster||item.banner?'':' style="display:none"')+'>'
+    '<div class="modal-hero" id="modal-hero">'+'<img class="modal-poster" id="modal-hero-img" src="'+((item.locked&&item.banner)||item.poster||'')+'" alt=""'+(item.poster||item.banner?' onerror="posterImgError(this,'+id+')"':' style="display:none"')+'>'
     +'<div class="modal-hero-ph" id="modal-hero-ph" style="display:'+(item.poster||item.banner?'none':'flex')+'">'+(item.type==='film'?'🎥':'🎬')+'</div>'
     +'<div class="modal-video-wrap" id="modal-video-wrap"><div id="modal-yt"></div><div id="modal-vid-ext"></div><div class="vid-shield"></div></div>'
     +'<button class="modal-sound-btn sound-toggle-btn" id="modal-sound" title="Activer le son" style="display:none">🔇</button></div>'
@@ -5530,6 +5533,20 @@ function genPosterUrl(title,kind){
     return c.toDataURL('image/jpeg',.86);
   }catch(e){return '';}
 }
+// Repli si une VRAIE affiche était bien renseignée (item.poster non vide) mais que le
+// lien ne charge pas une fois affiché (hébergeur qui bloque le hotlink, image supprimée
+// côté source, etc.) — genPosterUrl() plus haut ne couvre que le cas "pas d'affiche du
+// tout", donc sans ceci une affiche cassée faisait carrément disparaître la zone (plus
+// grave encore sur la fiche détaillée, qui — contrairement aux cartes de la grille — ne
+// réservait aucune hauteur fixe tant que l'image n'avait pas fini de charger). On
+// remplace juste l'affichage, sans jamais toucher à item.poster : un souci réseau
+// temporaire ne doit pas effacer une affiche par ailleurs valide.
+window.posterImgError=function(img,id){
+  img.onerror=null;
+  var it=items.find(function(i){return i.id===id;});
+  if(it)img.src=genPosterUrl(it.title,it.type);
+  var ph=document.getElementById('modal-hero-ph');if(ph)ph.style.display='none';
+};
 function fixModalMedia(item,id){
   if(document.getElementById('modal-hero-img')&&(item.poster||item.banner))fitModalHeroOrientation(document.getElementById('modal-hero-img'));
   if(!item.tmdbId||!item.tmdbType){
