@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Ciné Tracker">
+<meta name="apple-mobile-web-app-title" content="Scène Tracker">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -2159,7 +2159,7 @@ body.dark .subr-details summary{color:#C9A8FF;}
 <body>
 <div id="cine-particles" aria-hidden="true"></div>
 <header>
-  <div class="brand">🎬 Mon Ciné Tracker <button class="hdr-avatar" id="hdr-avatar" title="Pass Planning">🙂</button></div>
+  <div class="brand">🔥 Mon Scène Tracker <button class="hdr-avatar" id="hdr-avatar" title="Pass Planning">🙂</button></div>
   <div class="header-right">
     <nav>
       <button class="nav-btn active" data-view="library">📚 Collection</button>
@@ -3009,37 +3009,48 @@ window.CINE_CLOUD={
 };
 /* ====== 👥 Profils (façon Netflix) + cloisonnement des données ======
    Chaque profil / compte a ses propres données : on préfixe les clés « cine… »
-   du stockage de l'appareil. Le profil principal garde les clés d'origine. */
+   du stockage de l'appareil. Le profil principal garde les clés d'origine.
+   ====== 🔒 Espace de stockage dédié à Scène Tracker ======
+   Ce tracker et « Ciné Tracker » sont deux sites différents mais hébergés sur le même
+   domaine (max65654.github.io) : le navigateur partage le même « localStorage » entre les
+   deux. Sans précaution, les deux applis écraseraient les mêmes données (collection,
+   compte, pass…). Toutes les clés de CETTE appli reçoivent donc systématiquement le
+   préfixe APPNS ci-dessous, jamais utilisé par l'autre site : aucune donnée, aucun profil,
+   aucun compte ne peut se mélanger entre les deux, même ouverts dans le même navigateur. */
 (function(){
   var SP=Storage.prototype,raw={get:SP.getItem,set:SP.setItem,rem:SP.removeItem};
-  var REG='cineProfilesReg',AUTH='cineAuthUid';
+  var APPNS='st2026_';
+  // Pas de migration automatique des anciennes clés sans préfixe : Ciné Tracker utilise
+  // exactement les mêmes noms de clés sur ce même domaine, donc une migration ne pourrait
+  // pas distinguer « anciennes données de ce tracker » de « données actuelles de l'autre
+  // appli » — et importerait par erreur la collection de l'autre site. On préfère repartir
+  // d'une collection vide ici plutôt que risquer de mélanger les deux.
+  var REG='ProfilesReg',AUTH='cineAuthUid';/* nom partagé avec le module compte/Firebase plus bas : ne pas changer sans changer les deux */
   var cloud=!!(window.CINE_CLOUD&&CINE_CLOUD.firebase&&CINE_CLOUD.firebase.apiKey);
-  function rget(k){try{return raw.get.call(localStorage,k);}catch(e){return null;}}
-  function rset(k,v){try{raw.set.call(localStorage,k,v);}catch(e){}}
+  function rget(k){try{return raw.get.call(localStorage,APPNS+k);}catch(e){return null;}}
+  function rset(k,v){try{raw.set.call(localStorage,APPNS+k,v);}catch(e){}}
   function regGet(){try{return JSON.parse(rget(REG))||null;}catch(e){return null;}}
   var reg=regGet()||{list:[{id:'main',name:'',ava:'🙂'}]};
   function regSave(){rset(REG,JSON.stringify(reg));}
   var uid=cloud?rget(AUTH):null;
-  var active=null;try{active=sessionStorage.getItem('cineActiveProfile');}catch(e){}
+  var active=null;try{active=sessionStorage.getItem('stActiveProfile');}catch(e){}
   if(!active||!reg.list.some(function(p){return p.id===active;}))active=reg.list.length===1?reg.list[0].id:null;
-  var prefix=cloud?('u_'+(uid||'none')+'__'):(active&&active!=='main'?'p_'+active+'__':'');
-  function isCine(k){return typeof k==='string'&&k.indexOf('cine')===0&&k!==REG&&k!==AUTH&&k.indexOf('cineCloud')!==0;}
+  var prefix=APPNS+(cloud?('u_'+(uid||'none')+'__'):(active&&active!=='main'?'p_'+active+'__':''));
+  function isCine(k){return typeof k==='string'&&k!==REG&&k!==AUTH&&(k.indexOf('cine')===0||k.indexOf('cc')===0||k.indexOf('ct_')===0||k==='ctMaintLast'||k==='pwaHintDone'||k.indexOf('kk_')===0)&&k.indexOf('cineCloud')!==0;}
   var onWrite=[];
-  if(prefix){
-    SP.getItem=function(k){if(this===window.localStorage&&isCine(k))k=prefix+k;return raw.get.call(this,k);};
-    SP.removeItem=function(k){if(this===window.localStorage&&isCine(k))k=prefix+k;return raw.rem.call(this,k);};
-  }
+  SP.getItem=function(k){if(this===window.localStorage&&isCine(k))k=prefix+k;return raw.get.call(this,k);};
+  SP.removeItem=function(k){if(this===window.localStorage&&isCine(k))k=prefix+k;return raw.rem.call(this,k);};
   SP.setItem=function(k,v){var real=k;if(this===window.localStorage&&isCine(k)){real=prefix+k;onWrite.forEach(function(f){try{f(k,v);}catch(_){}});}return raw.set.call(this,real,v);};
   function keyFor(pid,k){return (pid==='main'?'':'p_'+pid+'__')+k;}
   window.CineProfiles={
-    cloud:cloud,prefix:prefix,raw:raw,onWrite:onWrite,
+    cloud:cloud,prefix:prefix,raw:raw,onWrite:onWrite,ns:APPNS,
     activeId:function(){return active;},
     all:function(){return reg.list.slice();},
     list:function(){return cloud?[]:reg.list.filter(function(p){return p.id!==active;});},
     readItems:function(pid){try{return JSON.parse(rget(keyFor(pid,'cineItems')))||[];}catch(e){return [];}},
     updateMeta:function(name,ava){if(cloud)return;var p=reg.list.find(function(x){return x.id===active;});if(!p)return;name=name||p.name;if(ava==='🙂'&&p.ava)ava=p.ava;if(p.name!==name||p.ava!==ava){p.name=name;p.ava=ava;regSave();}},
     activeName:function(){var p=reg.list.find(function(x){return x.id===active;});return p?p.name:'';},
-    switchTo:function(id){try{sessionStorage.setItem('cineActiveProfile',id);}catch(e){}location.reload();},
+    switchTo:function(id){try{sessionStorage.setItem('stActiveProfile',id);}catch(e){}location.reload();},
     create:function(name,ava){var id='p'+Date.now().toString(36);reg.list.push({id:id,name:name||'Nouveau profil',ava:ava||'🙂'});regSave();return id;},
     remove:function(id){if(id==='main')return;reg.list=reg.list.filter(function(p){return p.id!==id;});regSave();
       var dead=[];for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k&&k.indexOf('p_'+id+'__')===0)dead.push(k);}dead.forEach(function(k){raw.rem.call(localStorage,k);});},
@@ -6746,7 +6757,7 @@ function spPanel(side,it){
   el.innerHTML='<div class="sp-bg" style="background-image:url('+(it.poster||'')+')"></div><div class="sp-scrim"></div><div class="sp-glow"></div>'
     +'<div class="sp-content">'
     +'<div class="sp-top"><div class="sp-badge">📌 Prévu dans ta liste</div><div class="sp-tag">À voir bientôt 🍿</div></div>'
-    +'<div class="sp-bottom"><div class="sp-title">'+esc(it.title)+'</div>'+archChips(it)+'<button class="sp-btn">▶ Voir la fiche</button><div class="sp-foot">🎬 Mon Ciné Tracker</div></div>'
+    +'<div class="sp-bottom"><div class="sp-title">'+esc(it.title)+'</div>'+archChips(it)+'<button class="sp-btn">▶ Voir la fiche</button><div class="sp-foot">🔥 Mon Scène Tracker</div></div>'
     +'</div>';
   function go(){openModal(it.id);}
   el.querySelector('.sp-bg').addEventListener('click',go);
@@ -11228,7 +11239,7 @@ function openRecapCard(){
     +'<div class="rc-lvl">Niveau <b>'+passLevel()+'</b> · '+(passState.xp||0)+' XP</div>'
     +'<div class="rc-stats"><div><b>'+nights+'</b>soirées</div><div><b>'+onTime+'</b>à l\'heure</div><div><b>'+seasons+'</b>saisons finies</div><div><b>'+finished+'</b>séries finies</div><div><b>'+peps.length+'</b>pépites</div><div><b>'+(passState.streak||0)+'</b>🔥 série</div></div>'
     +(peps.length?'<div class="rc-peps">'+peps.slice(0,8).map(function(p){return '<img crossorigin="anonymous" src="'+p.poster_path+'" alt="">';}).join('')+'</div>':'')
-    +'<div class="rc-foot">🎬 Mon Ciné Tracker · Pass Planning</div></div>'
+    +'<div class="rc-foot">🔥 Mon Scène Tracker · Pass Planning</div></div>'
     +'<div style="text-align:center;margin-top:12px"><button class="pq-claim" id="recap-dl">📸 Exporter en image</button></div></div>';
   ov.classList.add('show');
   ov.querySelector('.pepite-x').addEventListener('click',function(){ov.classList.remove('show');ov.innerHTML='';});
@@ -13002,7 +13013,7 @@ function fyBind(el){
   el.querySelectorAll('[data-fyown]').forEach(function(b){b.onclick=function(){openModal(+b.dataset.fyown);};});
 }
 /* ---------- 📰 ACTUS façon Twitter ---------- */
-var FEED_ACC={ct:{n:'Ciné Tracker',h:'@CineTracker',a:'🎬',c:'linear-gradient(135deg,#5B3A8C,#FF4D6D)'},tv:{n:'Épisodes',h:'@TesSeries',a:'📺',c:'linear-gradient(135deg,#118ab2,#06d6a0)'},tr:{n:'Tendances',h:'@TendancesCine',a:'🔥',c:'linear-gradient(135deg,#fb5607,#ffbe0b)'},rv:{n:'Critiques',h:'@AvisCine',a:'✍️',c:'linear-gradient(135deg,#3a0ca3,#7209b7)'},out:{n:'Sorties',h:'@SortiesCine',a:'🍿',c:'linear-gradient(135deg,#d00000,#ff8c42)'}};
+var FEED_ACC={ct:{n:'Scène Tracker',h:'@SceneTracker',a:'🎬',c:'linear-gradient(135deg,#5B3A8C,#FF4D6D)'},tv:{n:'Épisodes',h:'@TesSeries',a:'📺',c:'linear-gradient(135deg,#118ab2,#06d6a0)'},tr:{n:'Tendances',h:'@TendancesScene',a:'🔥',c:'linear-gradient(135deg,#fb5607,#ffbe0b)'},rv:{n:'Critiques',h:'@AvisScene',a:'✍️',c:'linear-gradient(135deg,#3a0ca3,#7209b7)'},out:{n:'Sorties',h:'@SortiesScene',a:'🍿',c:'linear-gradient(135deg,#d00000,#ff8c42)'}};
 passState.feedLikes=passState.feedLikes||{};
 function feedPost(acc,ts,text,img,id,extra){return {acc:acc,ts:ts,text:text,img:img||'',id:id,extra:extra||null};}
 function buildFeed(){
@@ -13472,7 +13483,7 @@ renderFeed=function(){
     var col3=(extra||[]).concat(nw.filter(function(x){return x.col===3;})).sort(function(a,b){return b.ts-a.ts;}).slice(0,50);
     function col(n,title,list,empty){return '<div class="fcol'+(tabs===n?' on':'')+'" data-fcol="'+n+'"><div class="fcol-h">'+title+'</div><div class="fcol-b">'+(list.length?list.map(twHtml).join(''):'<div class="news-empty">'+empty+'</div>')+'</div></div>';}
     el.innerHTML='<div class="fcol-tabs"><button data-ft="1" class="'+(tabs===1?'on':'')+'">🎬 Pour moi</button><button data-ft="2" class="'+(tabs===2?'on':'')+'">📰 Actus</button><button data-ft="3" class="'+(tabs===3?'on':'')+'">🔥 Tendances</button></div>'
-      +col(1,'🎬 Pour moi <small>tes séries, sorties, potes, Ciné Tracker</small>',mine,'Rien pour l\'instant.')
+      +col(1,'🎬 Pour moi <small>tes séries, sorties, potes, Scène Tracker</small>',mine,'Rien pour l\'instant.')
       +col(2,'📰 Actus ciné & séries <small>AlloCiné, Écran Large, Première, CinéSérie…</small>',col2,news?'Actus indisponibles pour le moment.':'⏳ Je récupère les actus…')
       +col(3,'🔥 Tendances & coulisses <small>tendances, critiques, Deadline, Variety</small>',col3,'⏳…');
     el.querySelectorAll('[data-ft]').forEach(function(b){b.onclick=function(){window._feedTab=+b.dataset.ft;tabs=window._feedTab;el.querySelectorAll('[data-ft]').forEach(function(x){x.classList.toggle('on',x===b);});el.querySelectorAll('.fcol').forEach(function(c){c.classList.toggle('on',+c.dataset.fcol===tabs);});};});
@@ -13733,7 +13744,7 @@ function openPremiumOffer(force){
     var cs=currentSeason();if(premiumUnlocked(r)&&!force)return;
     var d=premiumDef(),rw=PREMIUM_TIERS.map(function(n){return premiumReward(n,r||{cast:[]});});
     var o=document.createElement('div');o.className='poffer-ov';
-    o.innerHTML='<div class="poffer"><div class="po-rib">🍿 Meilleure offre du Ciné Tracker !<button class="po-x">✕</button></div><div class="po-top"><div class="po-art" style="'+(r&&r.backdrop?'background-image:url('+r.backdrop+')':'')+'">'+(r&&r.poster?'<img src="'+r.poster+'">':emoteSvg('soda_cool',120,true))+'<div class="po-emo">'+emoteSvg('clap_cool',70)+'</div></div><div class="po-side"><div class="po-crown">👑</div><div class="po-t">Pass Premium</div><div class="po-s">'+(r?esc(r.label)+(r.season?' · saison '+r.season:''):'Série secrète 🤫')+'</div></div></div>'
+    o.innerHTML='<div class="poffer"><div class="po-rib">🍿 Meilleure offre du Scène Tracker !<button class="po-x">✕</button></div><div class="po-top"><div class="po-art" style="'+(r&&r.backdrop?'background-image:url('+r.backdrop+')':'')+'">'+(r&&r.poster?'<img src="'+r.poster+'">':emoteSvg('soda_cool',120,true))+'<div class="po-emo">'+emoteSvg('clap_cool',70)+'</div></div><div class="po-side"><div class="po-crown">👑</div><div class="po-t">Pass Premium</div><div class="po-s">'+(r?esc(r.label)+(r.season?' · saison '+r.season:''):'Série secrète 🤫')+'</div></div></div>'
       +'<div class="po-grid">'+rw.map(function(x){return '<div class="po-it"><div class="po-ic">'+x.ico+'</div><small>'+esc(x.n)+'</small></div>';}).join('')+'<div class="po-it"><div class="po-ic">😎</div><small>Emote exclusive</small></div></div>'
       +'<div class="po-how">'+(premiumUnlocked(r)?'✅ Tu l\'as déjà débloqué !':'Regarde la série en entier, puis réussis le <b>quiz de 10 questions</b> (ou importe ton historique Netflix).')+'</div><button class="po-go">'+(premiumUnlocked(r)?'👑 Voir mes récompenses':'🧠 Débloquer gratuitement')+'</button></div>';
     document.body.appendChild(o);try{sfx.success();}catch(_){}
@@ -14601,8 +14612,8 @@ function ccMatch(root,T){
     o.querySelector('#cc-ok').onclick=function(){root.remove();ccRender();};}
 }
 /* ---------- Dans le hub des jeux ---------- */
-GAMES.unshift({id:'clash',ico:'⚔️',n:'Ciné Clash',d:'Combats de cartes en 3D : 16 personnages de cinéma, coffres, boutique, trophées',tag:'Nouveau'});
-(function(){var oO=openGame;openGame=function(id,ctx){if(id==='clash'){gameCineClash();return;}return oO(id,ctx);};
+/* Ciné Clash retiré de ce site : plus de tuile dans le hub, plus de routage vers le jeu de cartes. */
+(function(){var oO=openGame;openGame=function(id,ctx){if(id==='clash'){return;}return oO(id,ctx);};
   var oC=closeGame;closeGame=function(){var st=document.getElementById('game-stage');if(st)st.classList.remove('cc-stage');return oC.apply(this,arguments);};})();
 (function(){var st=document.createElement('style');st.textContent=
  '.gh-card.gh-nouveau{grid-column:1/-1;min-height:150px;background:linear-gradient(120deg,#1d3557,#7b2cbf 60%,#ff4d6d)!important;color:#fff!important;font-size:1.1rem;position:relative;overflow:hidden}.gh-card.gh-nouveau .gh-ico{font-size:3rem}.gh-card.gh-nouveau b{font-size:1.6rem;font-family:Fredoka,sans-serif}'
@@ -14940,7 +14951,7 @@ document.head.appendChild(st);})();
     var inst=standalone()?'':'<button class="ms-inst" id="ms-inst">📲 <b>Installer l\'appli sur mon téléphone</b><small>'+(isIOS?'Safari → Partager ⬆️ → « Sur l\'écran d\'accueil »':'Elle s\'ouvrira en plein écran, comme une vraie appli')+'</small></button>';
     sheet.querySelector('.ms-body').innerHTML='<div class="ms-prof" id="ms-prof"></div>'+inst+'<div class="ms-h">Toutes les pages</div><div class="ms-grid">'+others.map(function(b){var tx=b.childNodes[0]&&b.childNodes[0].nodeType===3?b.childNodes[0].textContent.trim():b.textContent.trim();var m=tx.match(/^(\S+)\s+(.*)$/);var badge=b.querySelector('.nav-badge');return '<button class="ms-pg'+(b.classList.contains('active')?' on':'')+'" data-mv="'+b.dataset.view+'"><span>'+(m?m[1]:'•')+'</span>'+esc(m?m[2]:tx)+(badge&&badge.style.display!=='none'&&badge.textContent?'<i>'+esc(badge.textContent)+'</i>':'')+'</button>';}).join('')+'</div>'
       +'<div class="ms-h">Réglages</div><div class="ms-sets">'+sets.filter(function(s){return document.getElementById(s.id);}).map(function(s){return '<button class="ms-set" data-ms="'+s.id+'"><span>'+tg(s.id)+'</span>'+s.n+'</button>';}).join('')+'</div>'
-      +'<div class="ms-h">Mes données</div><div class="ms-list">'+data.map(function(x){return '<button class="ms-li" data-ms="'+x.id+'">'+x.i+' '+x.n+'</button>';}).join('')+'</div><div class="ms-foot">Mon Ciné Tracker · '+(standalone()?'appli installée ✓':isIOS?'iPhone':isAndroid?'Android':'navigateur')+'</div>';
+      +'<div class="ms-h">Mes données</div><div class="ms-list">'+data.map(function(x){return '<button class="ms-li" data-ms="'+x.id+'">'+x.i+' '+x.n+'</button>';}).join('')+'</div><div class="ms-foot">Mon Scène Tracker · '+(standalone()?'appli installée ✓':isIOS?'iPhone':isAndroid?'Android':'navigateur')+'</div>';
     var prof=sheet.querySelector('#ms-prof');var av=document.getElementById('hdr-avatar');prof.innerHTML='<button class="ms-pbtn">'+(av?av.innerHTML:'🙂')+'<b>'+esc((function(){try{return profName();}catch(_){return 'Mon profil';}})())+'</b><small>Profil, avatar, compte</small></button>';
     prof.querySelector('button').onclick=function(){closeSheet();if(av)av.click();};
     sheet.querySelectorAll('[data-mv]').forEach(function(b){b.onclick=function(){closeSheet(true);go(b.dataset.mv);};});
@@ -15051,7 +15062,7 @@ var CC_SPELLS=[
  {id:'shark',n:'Tornade de Requins',g:'Horreur',gid:27,cost:3,spell:1,r:3.2,sdmg:240,pull:1.6,rar:'épique',col:'#4361ee',ico:'🦈',d:'Hommage aux séries B délirantes : aspire les ennemis au centre et les mord.'}
 ];
 CC_SPELLS.forEach(function(s){s.hp=0;s.dmg=s.sdmg||s.heal||0;s.skin=s.col;s.gear='spell';s.rng=0;s.spd=0;if(!ccChar(s.id))CC_CHARS.push(s);});
-(function(){if(!CC.cards.popcorn){CC.cards.popcorn={l:1,n:0};ccSave();setTimeout(function(){toast('🍿 Ciné Clash : nouvelles cartes SORTS ! La Pluie de Pop-corn est à toi');},4000);}})();
+(function(){if(!CC.cards.popcorn){CC.cards.popcorn={l:1,n:0};ccSave();}})();
 // Route des trophées : les sorts arrivent petit à petit
 (function(){var sp={1:'heal',3:'bomb',7:'spot',11:'freeze',17:'shark'};CC_ROAD.forEach(function(s){var i=s.t/100;if(sp[i]&&!CC.road[s.t])s.r={k:'card',id:sp[i]};});})();
 var _ccPortrait0=ccPortrait;
@@ -15964,7 +15975,7 @@ ccInvitePopup=function(b){try{sfx.success();}catch(_){}var md=b.mode?ccModeDef(b
 var _ccSM1=ccStartMatch;ccStartMatch=function(o){if(!o||(typeof Event!=='undefined'&&o instanceof Event))o={};if(o.pvp&&!o.pvp.mode&&_ccModeFor[o.pvp.id])o.pvp.mode=_ccModeFor[o.pvp.id];if(o.ghost&&!o.mode&&_ccPickMode)o.mode=_ccPickMode;return _ccSM1(o);};
 /* ---------- Pass : écran ---------- */
 function ccPassHtml(){var P=ccPassState(),S=ccSeason(),tier=ccPassTier(P.pts),maxed=tier>=CCP_T,inT=maxed?CCP_PER:P.pts-tier*CCP_PER,pct=inT/CCP_PER*100,q=ccQuests();
-  var h='<div class="ccp-head" style="--c1:'+S.c1+';--c2:'+S.c2+'"><div class="ccp-hl"><small>PASS CINÉ CLASH · SAISON '+S.num+'</small><b>'+S.ico+' '+esc(S.n)+'</b><span>⏳ Fin de saison dans '+ccLeft()+'</span></div>'
+  var h='<div class="ccp-head" style="--c1:'+S.c1+';--c2:'+S.c2+'"><div class="ccp-hl"><small>PASS SCÈNE TRACKER · SAISON '+S.num+'</small><b>'+S.ico+' '+esc(S.n)+'</b><span>⏳ Fin de saison dans '+ccLeft()+'</span></div>'
     +'<div class="ccp-prog"><div class="ccp-lvl"><small>Palier</small>'+tier+'</div><div class="ccp-bar"><i style="width:'+pct+'%"></i><span>'+(maxed?'MAX ⭐ · bonus tous les '+CCP_PER+' points':'👑 '+inT+' / '+CCP_PER+' → palier '+(tier+1))+'</span></div><small>1 point par couronne gagnée, +1 par victoire, +1 en mode du mois, +3 par quête</small></div>'
     +(P.prem?'<div class="ccp-prem on">✨ PREMIUM<br><small>actif</small></div>':'<button class="ccp-prem" id="ccp-buy">✨ PREMIUM<br><b>💠 '+CCP_PRICE+'</b></button>')+'</div>';
   h+='<div class="ccp-act"><button class="cc-sbtn go" id="ccp-all">🎁 Tout récupérer</button><span>'+ccPassReady()+' récompense(s) prête(s)</span></div>';
@@ -16084,7 +16095,7 @@ function ccFilmHook(){try{if(typeof CC==='undefined'||!items)return;var done=ite
   if(!CC.fseen){CC.fseen={};done.forEach(function(it){CC.fseen[ccFilmKey(it)]=1;});ccSave();return;}
   var fresh=done.filter(function(it){return !CC.fseen[ccFilmKey(it)];});if(!fresh.length)return;var day=todayStr();CC.pc=CC.pc&&CC.pc.d===day?CC.pc:{d:day,got:0,n:(CC.pc&&CC.pc.n)||0};
   var msgs=[];fresh.slice(0,6).forEach(function(it){CC.fseen[ccFilmKey(it)]=1;var gids={};(it.genreIds||[]).forEach(function(g){gids[CC_GMAP[g]||g]=1;});var boosted=[];Object.keys(CC.cards).forEach(function(id){var c=ccChar(id);if(c&&!c.spell&&gids[c.gid]&&boosted.length<3){CC.cards[id].n+=2;boosted.push(c.n.split(' ')[0]);}});
-    if(CC.pc.got<3){CC.pc.got++;CC.pc.n++;}msgs.push('🎬 « '+(it.title||'')+' » fini'+(boosted.length?' : +2 cartes '+boosted.join(', '):'')+' · 🍿 coffre pop-corn Ciné Clash');});
+    if(CC.pc.got<3){CC.pc.got++;CC.pc.n++;}msgs.push('🎬 « '+(it.title||'')+' » fini !');});
   fresh.slice(6).forEach(function(it){CC.fseen[ccFilmKey(it)]=1;});ccSave();msgs.slice(0,2).forEach(function(m,i){setTimeout(function(){toast(m);},600+i*2600);});}catch(e){console.warn('ccFilm',e);}}
 (function(){var o=sv;sv=function(){var r=o.apply(this,arguments);try{clearTimeout(ccFilmHook._t);ccFilmHook._t=setTimeout(ccFilmHook,400);}catch(_){}return r;};setTimeout(ccFilmHook,3000);})();
 function ccOpenPopcorn(){if(!CC.pc||!CC.pc.n)return;CC.pc.n--;var gold=ccRand(40,80),cards=ccGiveCards(4),fr=Math.random()<.2?1:0;CC.gold+=gold;if(fr)CC.frag=(CC.frag||0)+fr;ccSave();ccLootShow('Coffre pop-corn'+(fr?' · 🧬 +1 fragment':''),'🍿',gold,0,cards);}
@@ -16243,7 +16254,7 @@ function ccBandUi(){if(!window.CineSocial||!window.CineSocial.friends)return toa
   var lg=ccLeagueIdx(CC.tr);if(CC.lg&&lg>CC.lg.best){CC.lg.best=lg;if(lg>=0)chips.push('<span class="cc3-pchip up">'+CC_LEAGUES[lg].i+' '+CC_LEAGUES[lg].n+' !</span>');}
   ccSave();}catch(e){console.warn('cc v5',e);}return out+chips.join('');};})();
 /* ---------- Notifications téléphone : coffre prêt ---------- */
-function ccChestNotify(){try{if(typeof ntfyCfg==='undefined'||!ntfyCfg.on||!ntfyCfg.topic)return;var ch=false;CC.chests.forEach(function(c){if(c.at&&c.at>Date.now()&&!c.nt){c.nt=1;ch=true;ntfySend('🎁 Coffre Ciné Clash prêt !','Ton '+CC_CHESTS[c.id].n+' est prêt à être ouvert.',{at:c.at,tags:'gift'});}});if(ch)ccSave();}catch(_){}}
+function ccChestNotify(){/* Ciné Clash retiré de ce site : plus de notifications de coffres. */}
 /* ---------- Hub : modes de jeu, replays, stats, bande, decks ---------- */
 (function(){var oR=ccRender;ccRender=function(){var r=oR.apply(this,arguments);var hub=document.getElementById('cc-hub');if(!hub)return r;try{
   ccLeagueCheck();ccDecksInit();ccChestNotify();ccSocialListen();
@@ -16296,11 +16307,10 @@ var APP_THEMES=[
  {id:'noel',n:'Noël enneigé',ico:'🎄',sw:'#e63946',bg:'#0d1b2a',card:'#1b263b',font:'Mountains of Christmas',how:{t:'genre',g:10751,n:5},hl:'Regarde 5 films familiaux ou de Noël'},
  {id:'espace',n:'Voyage spatial',ico:'🚀',sw:'#a855f7',bg:'#05071a',card:'#0f1333',font:'Orbitron',how:{t:'genre',g:878,n:10},hl:'Regarde 10 films ou séries de science-fiction'},
  {id:'manga',n:'Manga',ico:'💥',sw:'#ff006e',bg:'#fffdf7',card:'#ffffff',font:'Bangers',how:{t:'genre',g:16,n:10},hl:'Regarde 10 animés ou films d\'animation'},
- {id:'western',n:'Far West',ico:'🌵',sw:'#bc6c25',bg:'#f4e1c1',card:'#fff4e0',font:'Rye',how:{t:'or',l:[{t:'genre',g:37,n:3},{t:'clash',n:1000}]},hl:'Regarde 3 westerns, ou atteins 1000 🏆 à Ciné Clash'},
+ {id:'western',n:'Far West',ico:'🌵',sw:'#bc6c25',bg:'#f4e1c1',card:'#fff4e0',font:'Rye',how:{t:'genre',g:37,n:3},hl:'Regarde 3 westerns'},
  {id:'annees50',n:'Années 50',ico:'🎞️',sw:'#8c1c13',bg:'#efe6d8',card:'#faf6ee',font:'Playfair Display',how:{t:'old',y:1970,n:5},hl:'Regarde 5 films sortis avant 1970'},
  {id:'ocean',n:'Abysses',ico:'🌊',sw:'#00b4d8',bg:'#03253a',card:'#06394f',font:'Fredoka',how:{t:'buy',tk:250},hl:'À acheter avec 250 🎟️ du Pass Ciné'},
  {id:'matrix',n:'Code vert',ico:'💚',sw:'#00ff66',bg:'#000a02',card:'#031a0a',font:'Share Tech Mono',how:{t:'journal',n:5},hl:'Note 5 séances dans ton Journal'},
- {id:'clash',n:'Ciné Clash',ico:'⚔️',sw:'#ffd23f',bg:'#16214f',card:'#22307a',font:'Fredoka',how:{t:'clashw',n:15},hl:'Gagne 15 combats de Ciné Clash'},
  {id:'sakura',n:'Printemps sakura',ico:'🌸',sw:'#ff8fab',bg:'#fff0f5',card:'#ffffff',font:'Fredoka',how:{t:'buy',tk:200},hl:'À acheter avec 200 🎟️ du Pass Ciné'}
 ];
 APP_THEMES.forEach(function(t){PASS_THEMES[t.id]={n:t.n,ico:t.ico,sw:t.sw,app:1};});
@@ -16326,7 +16336,7 @@ function athEquip(id){passState.equip=passState.equip||{};passState.equip.theme=
 function athPreview(t,big){var th=PASS_THEMES[t.id]||{},a=APP_THEMES.find(function(x){return x.id===t.id;})||{bg:'#222',card:'#333',sw:th.sw||'#ff4d6d',ico:th.ico||'🎨'};
   return '<div class="ath-prev'+(big?' big':'')+' athp-'+t.id+'" style="--pb:'+a.bg+';--pc:'+a.card+';--pr:'+a.sw+'"><div class="ath-bar"><i></i><i></i><i></i></div><div class="ath-body"><div class="ath-h">'+a.ico+'</div><div class="ath-cards"><span></span><span></span><span></span></div><div class="ath-btn"></div></div></div>';}
 function athGallery(){athCheck();var cur=(passState.equip&&passState.equip.theme)||'';var all=APP_THEMES.map(function(t){return t.id;}).concat(Object.keys(PASS_THEMES).filter(function(k){return !PASS_THEMES[k].app;}));
-  var o=document.createElement('div');o.className='ath-ov';o.innerHTML='<div class="ath-box"><button class="fd-x">✕</button><div class="ath-t">🎨 Thèmes de l\'appli</div><div class="ath-s">Chaque thème change tout le look de l\'appli : couleurs, fond animé, police des titres. Débloque-les en regardant des films, avec Ciné Clash, ton Journal ou le Pass.</div>'
+  var o=document.createElement('div');o.className='ath-ov';o.innerHTML='<div class="ath-box"><button class="fd-x">✕</button><div class="ath-t">🎨 Thèmes de l\'appli</div><div class="ath-s">Chaque thème change tout le look de l\'appli : couleurs, fond animé, police des titres. Débloque-les en regardant des films, en tenant ton Journal ou grâce au Pass.</div>'
     +'<div class="ath-grid"><button class="ath-c'+(!cur?' eq':'')+'" data-ath=""><div class="ath-prev" style="--pb:#fff6f0;--pc:#fff;--pr:#ff4d6d"><div class="ath-bar"><i></i><i></i><i></i></div><div class="ath-body"><div class="ath-h">🎬</div><div class="ath-cards"><span></span><span></span><span></span></div><div class="ath-btn"></div></div></div><b>Thème de base</b><small>'+(!cur?'✔ Activé':'Activer')+'</small></button>'
     +all.map(function(id){var th=PASS_THEMES[id],a=APP_THEMES.find(function(x){return x.id===id;}),own=isOwned('theme',id),eq=cur===id,st='';
       if(eq)st='<small class="ok">✔ Activé</small>';else if(own)st='<small>Activer</small>';else if(a&&a.how.t==='buy')st='<small class="buy">🎟️ '+a.how.tk+' · Acheter</small>';else if(a){var p=athProgress(a.how);st='<small class="lk">🔒 '+esc(a.hl)+'</small><div class="ath-pg"><i style="width:'+Math.min(100,p.v/p.n*100)+'%"></i><span>'+Math.min(p.v,p.n)+' / '+p.n+'</span></div>';}else st='<small class="lk">🔒 Récompense du Pass Ciné</small>';
@@ -16764,7 +16774,7 @@ function bindConnectPanel(el){
   function read(){ntfyCfg.topic=(g('cn-topic').value||'').trim().replace(/[^A-Za-z0-9_-]/g,'');ntfyCfg.eps=g('cn-eps').checked;ntfyCfg.plan=g('cn-plan').checked;ntfyCfg.pass=g('cn-pass').checked;ntfyCfg.hour=parseInt(g('cn-hour').value)||20;}
   g('cn-copy').addEventListener('click',function(){try{navigator.clipboard.writeText(g('cn-topic').value);toast('📋 Nom du canal copié');}catch(_){}});
   g('cn-save').addEventListener('click',function(){read();if(ntfyCfg.topic.length<6){toast('Choisis un nom de canal d\'au moins 6 caractères');return;}ntfyCfg.on=true;svNtfy();toast('🔔 Notifications activées');ntfyScheduleReleases();computePlan().then(function(r){ntfySchedulePlan(r.nights);});el.innerHTML=connectPanelHtml();bindConnectPanel(el);});
-  g('cn-test').addEventListener('click',function(){read();var was=ntfyCfg.on;ntfyCfg.on=true;ntfySend('🎬 Mon Ciné Tracker','Ça marche ! Tu recevras ici tes notifs séries 🍿',{tags:'tada'}).then(function(ok){toast(ok?'📨 Notif envoyée : regarde ton téléphone !':'⚠️ Envoi impossible, vérifie le nom du canal / ta connexion');});ntfyCfg.on=was;});
+  g('cn-test').addEventListener('click',function(){read();var was=ntfyCfg.on;ntfyCfg.on=true;ntfySend('🔥 Mon Scène Tracker','Ça marche ! Tu recevras ici tes notifs 🍿',{tags:'tada'}).then(function(ok){toast(ok?'📨 Notif envoyée : regarde ton téléphone !':'⚠️ Envoi impossible, vérifie le nom du canal / ta connexion');});ntfyCfg.on=was;});
   var off=g('cn-off');if(off)off.addEventListener('click',function(){ntfyCfg.on=false;svNtfy();el.innerHTML=connectPanelHtml();bindConnectPanel(el);});
   g('cn-ics').addEventListener('click',downloadPlanIcs);
   computePlan().then(function(res){var ev=planEventsFromNights(res.nights,7),box=el.querySelector('#cn-gcal');if(!box||!ev.length)return;box.innerHTML='<div class="cn-hint" style="margin-top:8px">Ou ajoute une soirée à Google Agenda en 1 clic :</div>'+ev.map(function(e){return '<a class="cn-gl" href="'+googleCalLink(e)+'" target="_blank" rel="noopener">📅 '+new Date(e.date+'T12:00').toLocaleDateString('fr-FR',{weekday:'short',day:'numeric'})+' · '+esc(e.title.replace('🍿 Séries : ',''))+'</a>';}).join('');});
@@ -17752,7 +17762,7 @@ var AV_ITEMS={
  tp_leather:{s:'top',n:'Blouson cuir des années 80',r:'épique',src:'shop',k:'leather',c1:'#1b1b1b',c2:'#6c757d',d:'Les rebelles et les motards des films 80s'},
  tp_suit:{s:'top',n:'Costume noir d\'agent secret',r:'épique',src:'shop',k:'suit',c1:'#16161d',c2:'#f8f9fa',d:'Les espions en smoking au casino'},
  tp_hoodie:{s:'top',n:'Sweat à capuche de hacker',r:'rare',src:'shop',k:'hoodie',col:1,d:'Les hackers des thrillers informatiques'},
- tp_comet:{s:'top',n:'Combinaison Comète',r:'légendaire',src:'shop',k:'hero',c1:'#ff7a00',c2:'#1d3557',c3:'#ffd23f',d:'Un super-héros original du Ciné Tracker'},
+ tp_comet:{s:'top',n:'Combinaison Comète',r:'légendaire',src:'shop',k:'hero',c1:'#ff7a00',c2:'#1d3557',c3:'#ffd23f',d:'Un super-héros original du Scène Tracker'},
  tp_space:{s:'top',n:'Combinaison de cosmonaute',r:'épique',src:'shop',k:'space',c1:'#f1f3f5',c2:'#ff7a00',d:'Les films de conquête spatiale'},
  tp_trench:{s:'top',n:'Imper de détective',r:'épique',src:'shop',k:'trench',c1:'#b08968',c2:'#7f5539',d:'Les films noirs des années 40'},
  tp_jersey:{s:'top',n:'Maillot de sport rétro',r:'rare',src:'shop',k:'jersey',col:1,d:'Les films de sport où l\'équipe nulle finit par gagner'},
@@ -18255,7 +18265,7 @@ function ciPosters(){if(_ciPosters&&_ciPosters.length>=12)return Promise.resolve
   try{(items||[]).concat(wishlist||[]).forEach(function(i){if(i&&i.poster&&/image\.tmdb\.org/.test(i.poster))l.push(i.poster.replace(/\/(w\d+|original)\//,'/w185/'));});}catch(_){}
   l=gShuffle(l.filter(function(x,i,a){return a.indexOf(x)===i;})).slice(0,48);if(l.length>=18){_ciPosters=l;return Promise.resolve(l);}
   return fTimeout(Promise.all([1,2].map(function(pg){return ivJson('https://api.themoviedb.org/3/trending/all/week?api_key='+TMDB+'&language=fr-FR&page='+pg);})).then(function(ds){ds.forEach(function(d){((d&&d.results)||[]).forEach(function(r){if(r.poster_path)l.push(''+r.poster_path);});});return l;}),5000).then(function(r){_ciPosters=gShuffle(r||l);return _ciPosters;});}
-function ciLogoHtml(){return '<div class="ci-logo"><div class="ci-l1">MON</div><div class="ci-l2"><span>CINÉ</span> <span>TRACKER</span></div><div class="ci-strip"><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b></div></div>';}
+function ciLogoHtml(){return '<div class="ci-logo"><div class="ci-l1">MON</div><div class="ci-l2"><span>SCÈNE</span> <span>TRACKER</span></div><div class="ci-strip"><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b></div></div>';}
 function ciWallHtml(n){var t='';for(var i=0;i<n;i++)t+='<i></i>';return '<div class="ci-wall">'+t+'</div>';}
 function ciWallRun(root,every,cnt){var tl=root.querySelectorAll('.ci-wall i'),iv=null;ciPosters().then(function(P){P=P||[];if(!P.length)return;
     function set(t){t.style.backgroundImage='url('+P[Math.floor(Math.random()*P.length)]+')';t.classList.remove('fl');void t.offsetWidth;t.classList.add('fl');}
@@ -18291,7 +18301,7 @@ var CI_CAST=[{hair:'h_pomp',top:'tp_leather',face:'f_shades',hand:'hn_pop',hairC
   {hair:'h_bald',beard:'b_wizard',head:'hd_tophat',top:'tp_suit',hand:'hn_wand',hairC:'#e9ecef'},{hair:'h_mohawk',hairC:'#ff70a6',top:'tp_space',face:'f_aviator',back:'bk_jet'},{hair:'h_spiky',beard:'b_sheriff',top:'tp_boiler',back:'bk_proton',hand:'hn_clap'}];
 function ciLoginDecor(o,opts){opts=opts||{};if(!o||o.querySelector('.ci-deco'))return;o.classList.add('acl-cine');
   var d=document.createElement('div');d.className='ci-deco';
-  d.innerHTML=ciWallHtml(40)+'<div class="ci-tint"></div><div class="ci-beams"><i></i><i></i></div><div class="ci-top">'+ciLogoHtml()+'<div class="ci-tag">🍿 Tes films, tes séries, tes potes · ton perso</div></div><div class="ci-3d"><canvas></canvas><div class="ci-spot"></div></div><button class="ci-snd" title="Jouer le générique">🔊</button>';
+  d.innerHTML=ciWallHtml(40)+'<div class="ci-tint"></div><div class="ci-beams"><i></i><i></i></div><div class="ci-top">'+ciLogoHtml()+'<div class="ci-tag">🎬 Tes scènes, tes films, tes stats · ton perso</div></div><div class="ci-3d"><canvas></canvas><div class="ci-spot"></div></div><button class="ci-snd" title="Jouer le générique">🔊</button>';
   o.insertBefore(d,o.firstChild);var wall=ciWallRun(d,700,2);
   var own=false;try{own=!!(passState&&passState.av);}catch(_){}
   var ci=0,cfg=own?avCfg():Object.assign(avDefault(),CI_CAST[Math.floor(Math.random()*CI_CAST.length)]);
@@ -18509,7 +18519,7 @@ function knChar(T,name,opts){opts=opts||{};var src=KN.g[name];if(!src)return nul
 ].forEach(function(c){if(!ccChar(c.id))CC_CHARS.push(c);});
 (function(){var z=ccChar('zombie');if(z)z.kn='zombie';var p=ccChar('pirate');if(p)p.kn='pirate-captain';})();
 /* Cadeau de la mise à jour : 3 nouvelles cartes offertes */
-(function(){if(CC.v6)return;CC.v6=1;['crew','skater','survivor'].forEach(function(id){if(!CC.cards[id])CC.cards[id]={l:1,n:0};});ccSave();setTimeout(function(){try{toast('🎁 Ciné Clash : 3 nouvelles cartes en 3D offertes (Équipage du Kraken, Skateur Rebelle, Survivante de l\'Aube) !');}catch(_){}},4000);})();
+(function(){if(CC.v6)return;CC.v6=1;['crew','skater','survivor'].forEach(function(id){if(!CC.cards[id])CC.cards[id]={l:1,n:0};});ccSave();})();
 (function(){var oB=ccBody;ccBody=function(T,c){if(c&&c.kn&&typeof KN!=='undefined'){var nm=c.kn==='zombie'?(Math.random()<.5?'zombie-1':'zombie-2'):c.kn;if(KN.g[nm]){var s=c.sc||1;var b=knChar(T,nm,{h:(nm==='fox'?1.25:1.92)*Math.min(1.5,s)});if(b)return b;}}return oB(T,c);};})();
 
 /* ---------- 📖 L'histoire de Ciné Clash ---------- */
@@ -18755,7 +18765,7 @@ ccPassRewards=function(k,S){var f,p;
 (function(){var oS=renderShop;renderShop=function(){var r=oS.apply(this,arguments);var el=document.getElementById('pass-shop');if(!el||el.querySelector('.sh-x'))return r;
   var R=qRand('xshop_'+todayStr()),pick=function(pool,own,n){var ids=Object.keys(pool).filter(function(i){return !own(i);}),out=[];while(ids.length&&out.length<n)out.push(ids.splice(Math.floor(R()*ids.length),1)[0]);return out;};
   var pf=pick(PFX,pfxOwned,2),it=pick(INTROS,introOwned,2);
-  var G=[{id:'g_boost',ico:'⚡',n:'Boost XP x2 (2 h)',d:'Toute l\'XP du Pass compte double pendant 2 heures.',p:{dm:5}},{id:'g_reroll',ico:'🎲',n:'Nouvelle quête',d:'Change une quête du jour que tu n\'aimes pas.',p:{pc:60}},{id:'g_gems',ico:'💠',n:'60 gemmes Ciné Clash',d:'Pour les coffres et les cartes de Ciné Clash.',p:{tk:40}},{id:'g_xp',ico:'🎟️',n:'+250 XP de Pass',d:'Un petit coup de pouce pour le prochain palier.',p:{st:3}},{id:'g_hc',ico:'💗',n:'Échange cœurs → pop-corn',d:'5 💗 contre 120 🍿.',p:{hc:5}}];
+  var G=[{id:'g_boost',ico:'⚡',n:'Boost XP x2 (2 h)',d:'Toute l\'XP du Pass compte double pendant 2 heures.',p:{dm:5}},{id:'g_reroll',ico:'🎲',n:'Nouvelle quête',d:'Change une quête du jour que tu n\'aimes pas.',p:{pc:60}},{id:'g_gems',ico:'💠',n:'60 gemmes bonus',d:'Une petite réserve de gemmes, pour plus tard.',p:{tk:40}},{id:'g_xp',ico:'🎟️',n:'+250 XP de Pass',d:'Un petit coup de pouce pour le prochain palier.',p:{st:3}},{id:'g_hc',ico:'💗',n:'Échange cœurs → pop-corn',d:'5 💗 contre 120 🍿.',p:{hc:5}}];
   var box=document.createElement('div');box.className='sh-x';
   box.innerHTML='<div class="sh-sec">🎬 Effets d\'affiche & génériques <small>(changent chaque jour)</small></div><div class="sh-row">'+pf.map(function(id){var x=PFX[id];return '<div class="sh-it r-'+(AV_RAR_CLS[x.r]||'rare')+'"><div class="sh-n">'+esc(x.n)+'</div><div class="sh-prev"><span class="sh-xp" data-xpv="'+id+'">'+x.ico+'</span></div><div class="sh-r">Effet d\'affiche · '+x.r+'</div><button class="sh-buy" data-shx="pfx:'+id+'">'+curHtml(X_PRICE[x.r])+'</button></div>';}).join('')
     +it.map(function(id){var x=INTROS[id];return '<div class="sh-it r-'+(AV_RAR_CLS[x.r]||'rare')+'"><div class="sh-n">'+esc(x.n)+'</div><div class="sh-prev" style="background:linear-gradient(180deg,'+x.c1+','+x.c2+')!important">'+x.ico+'</div><div class="sh-r">Générique · '+x.r+'</div><button class="sh-buy" data-shx="intro:'+id+'">'+curHtml(X_PRICE[x.r])+'</button></div>';}).join('')+(pf.length+it.length?'':'<div class="soc-t">Tu as déjà tout 😎</div>')+'</div>'
@@ -18764,7 +18774,7 @@ ccPassRewards=function(k,S){var f,p;
   box.querySelectorAll('[data-shx]').forEach(function(b){b.onclick=function(){var z=b.dataset.shx.split(':'),k=z[0],id=z[1],x=(k==='pfx'?PFX:INTROS)[id];if(passNotStarted())return toast('🎟️ La boutique ouvre le 1er octobre');if(!curSpend(X_PRICE[x.r]))return toast('Pas assez de monnaie');grantOwned(k,id);svPass();xBig(k,id);renderShop();};});
   box.querySelectorAll('[data-xpv]').forEach(function(s){s.onclick=function(){pfxPlay(s.parentNode,s.dataset.xpv);};});
   box.querySelectorAll('[data-shg]').forEach(function(b){b.onclick=function(){var g=G.find(function(x){return x.id===b.dataset.shg;});if(passNotStarted())return toast('🎟️ La boutique ouvre le 1er octobre');if(!curSpend(g.p))return toast('Pas assez de monnaie');
-    if(g.id==='g_boost'){passState.boostUntil=Math.max(Date.now(),passState.boostUntil||0)+2*3600000;toast('⚡ XP x2 pendant 2 h !');}else if(g.id==='g_reroll'){passState.rerollFree=(passState.rerollFree||0)+1;toast('🎲 Tu peux changer une quête (onglet Quêtes)');}else if(g.id==='g_gems'){CC.gem+=60;ccSave();toast('💠 +60 gemmes Ciné Clash');}else if(g.id==='g_xp'){passState.xp=(passState.xp||0)+250;toast('🎟️ +250 XP');}else if(g.id==='g_hc'){curAdd({pc:120});toast('🍿 +120 pop-corn');}svPass();renderShop();try{renderPass();}catch(_){}};});
+    if(g.id==='g_boost'){passState.boostUntil=Math.max(Date.now(),passState.boostUntil||0)+2*3600000;toast('⚡ XP x2 pendant 2 h !');}else if(g.id==='g_reroll'){passState.rerollFree=(passState.rerollFree||0)+1;toast('🎲 Tu peux changer une quête (onglet Quêtes)');}else if(g.id==='g_gems'){CC.gem+=60;ccSave();toast('💠 +60 gemmes');}else if(g.id==='g_xp'){passState.xp=(passState.xp||0)+250;toast('🎟️ +250 XP');}else if(g.id==='g_hc'){curAdd({pc:120});toast('🍿 +120 pop-corn');}svPass();renderShop();try{renderPass();}catch(_){}};});
   return r;};})();
 /* --- Profil : choisir son effet d'affiche et son générique --- */
 (function(){var oP=openProfileModal;openProfileModal=function(){var r=oP.apply(this,arguments);var ci=document.querySelector('#pm-av .pm-ci');if(!ci||document.getElementById('pm-x'))return r;passState.equip=passState.equip||{};
@@ -20151,8 +20161,7 @@ function cc9Tick(X,MODE){if(MODE&&MODE.trap)cc9Trap(MODE.trap,X);cc9Pow(X);}
   if(_ccTab==='cards'&&cc8Admin()&&!hub.querySelector('.cc9-crgo')){var pn2=hub.querySelector('.cc-panel');if(pn2){pn2.insertAdjacentHTML('afterbegin','<button class="cc-sbtn go cc9-crgo">🛠️ Atelier de cartes (admin) · crée tes persos</button>');pn2.querySelector('.cc9-crgo').onclick=function(){cc9Creator();};}}
   if(CC9_RQ.length&&!document.querySelector('.cc7-ch,.cc7-load,.ccr-ov,.cc-match,.cc9-cr-ov')){var id=CC9_RQ.shift();setTimeout(function(){try{ccReveal(id,'NOUVELLE CARTE DE MAX !');}catch(_){}},600);}
 }catch(e){console.warn('x9r',e);}return r;};})();
-/* bouton dans le profil admin */
-setInterval(function(){try{if(!cc8Admin())return;var mt=document.querySelector('.acc-maint');if(!mt||mt.parentNode.querySelector('.cc9-crbtn'))return;mt.insertAdjacentHTML('afterend','<div class="acc-maint cc9-crbtn"><div><b>🛠️ Atelier de cartes Ciné Clash</b><br><small>Crée tes persos 3D (allure, couleurs, pouvoirs, stats, phrases) : ils arrivent dans le jeu pour tout le monde.</small></div><button class="acc-out">🃏 Ouvrir l\'atelier</button></div>');mt.parentNode.querySelector('.cc9-crbtn button').onclick=function(){cc9Creator();};}catch(_){}},1500);
+/* Ciné Clash retiré de ce site : plus de bouton d'atelier de cartes dans le profil admin. */
 /* --- l'atelier --- */
 var _cr9=null;
 function cc9Creator(edit){if(!cc8Admin())return toast('👑 L\'atelier est réservé à l\'admin');if(document.querySelector('.cc9-cr-ov'))return;var D=null;
@@ -20471,9 +20480,9 @@ function recoBtnScan(root){if(!window.CineSocial)return;(root||document).querySe
 /* ====== 👤 Panneau compte/profil (dans « Mon profil ») + ☁️ comptes en ligne Firebase ====== */
 (function(){
   var CP=window.CineProfiles;if(!CP)return;
-  var raw=CP.raw;
-  function rget(k){try{return raw.get.call(localStorage,k);}catch(e){return null;}}
-  function rset(k,v){try{raw.set.call(localStorage,k,v);}catch(e){}}
+  var raw=CP.raw,NS=CP.ns||'';
+  function rget(k){try{return raw.get.call(localStorage,NS+k);}catch(e){return null;}}
+  function rset(k,v){try{raw.set.call(localStorage,NS+k,v);}catch(e){}}
   function esc2(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
   function tst(m){if(window.CineToast){window.CineToast(m);return;}var t=document.getElementById('toast');if(t){t.textContent=m;t.classList.add('show');clearTimeout(window._cpT);window._cpT=setTimeout(function(){t.classList.remove('show');},2600);}}
 
@@ -20495,7 +20504,7 @@ function recoBtnScan(root){if(!window.CineSocial)return;(root||document).querySe
   /* 🛠️ Maintenance : seul l'admin peut entrer (réglable par l'admin depuis l'appli) */
   var MAINT_DEFAULT=true,maintLocked=false,maintSub=null;
   (function(){var st=document.createElement('style');st.textContent='html.maint-lock body>*:not(#maint-ov):not(#acl-ov){visibility:hidden!important}#maint-ov{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:20px;background:radial-gradient(circle at 50% 30%,#4a1760,#12061f 70%);color:#fff;font-family:Inter,system-ui,sans-serif;text-align:center}#maint-ov .mb{max-width:440px}#maint-ov .mi{font-size:4.5rem;display:inline-block;animation:mtSpin 3s ease-in-out infinite}@keyframes mtSpin{0%,100%{transform:rotate(-12deg)}50%{transform:rotate(12deg)}}#maint-ov h1{font-family:Fredoka,Inter,sans-serif;font-size:1.9rem;margin:10px 0 6px}#maint-ov p{opacity:.85;line-height:1.5;margin:6px 0}#maint-ov .mbar{height:10px;border-radius:99px;background:#ffffff22;overflow:hidden;margin:18px 0}#maint-ov .mbar i{display:block;height:100%;width:40%;border-radius:99px;background:linear-gradient(90deg,#ff4d6d,#ffd23f);animation:mtBar 1.6s ease-in-out infinite}@keyframes mtBar{0%{transform:translateX(-100%)}100%{transform:translateX(260%)}}#maint-ov button{border:none;border-radius:14px;padding:12px 22px;font-weight:800;font-size:1rem;cursor:pointer;margin:4px;background:#ff4d6d;color:#fff}#maint-ov button.ml{background:none;color:#fff;opacity:.55;font-size:.8rem;text-decoration:underline}.maint-pill{position:fixed;left:10px;bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:10050;border:2px solid #1b1330;border-radius:99px;padding:7px 12px;font-weight:800;font-size:.75rem;cursor:pointer;box-shadow:0 4px 14px #0005;font-family:Inter,sans-serif}.maint-pill.on{background:#ff4d6d;color:#fff}.maint-pill.off{background:#2fbf71;color:#fff}@media(max-width:760px){.maint-pill{bottom:calc(76px + env(safe-area-inset-bottom,0px))}}.acl-maint{background:#fff3cd;color:#7a4b00;border-radius:12px;padding:8px 10px;font-size:.82rem;font-weight:700;margin:0 0 10px}';(document.head||document.documentElement).appendChild(st);})();
-  function maintLock(){maintLocked=true;document.documentElement.classList.add('maint-lock');function put(){if(!document.body){return setTimeout(put,30);}var o=document.getElementById('maint-ov');if(!o){o=document.createElement('div');o.id='maint-ov';document.body.appendChild(o);}o.innerHTML='<div class="mb"><div class="mi">🛠️</div><h1>Mon Ciné Tracker est en maintenance</h1><p>Une grosse mise à jour arrive : nouveautés Ciné Clash, thèmes à débloquer et plein d\'autres surprises 🍿</p><div class="mbar"><i></i></div><p>Reviens un peu plus tard, l\'appli rouvre très bientôt !</p><button id="maint-re">🔄 Réessayer</button><br><button class="ml" id="maint-adm">Accès admin</button></div>';o.querySelector('#maint-re').onclick=function(){location.reload();};try{if(window.ciLoginDecor)ciLoginDecor(o,{maint:1});}catch(_){}o.querySelector('#maint-adm').onclick=function(){if(auth&&auth.currentUser){auth.signOut();}else{maintHideScreen();showLogin();}};}put();}
+  function maintLock(){maintLocked=true;document.documentElement.classList.add('maint-lock');function put(){if(!document.body){return setTimeout(put,30);}var o=document.getElementById('maint-ov');if(!o){o=document.createElement('div');o.id='maint-ov';document.body.appendChild(o);}o.innerHTML='<div class="mb"><div class="mi">🛠️</div><h1>Mon Scène Tracker est en maintenance</h1><p>Une grosse mise à jour arrive : nouveautés, thèmes à débloquer et plein d\'autres surprises 🍿</p><div class="mbar"><i></i></div><p>Reviens un peu plus tard, l\'appli rouvre très bientôt !</p><button id="maint-re">🔄 Réessayer</button><br><button class="ml" id="maint-adm">Accès admin</button></div>';o.querySelector('#maint-re').onclick=function(){location.reload();};try{if(window.ciLoginDecor)ciLoginDecor(o,{maint:1});}catch(_){}o.querySelector('#maint-adm').onclick=function(){if(auth&&auth.currentUser){auth.signOut();}else{maintHideScreen();showLogin();}};}put();}
   function maintHideScreen(){var o=document.getElementById('maint-ov');if(o)o.remove();}
   function maintUnlock(){maintLocked=false;document.documentElement.classList.remove('maint-lock');maintHideScreen();}
   function maintWatch(){if(maintSub||!db)return;try{maintSub=db.collection('config').doc('premium').onSnapshot(function(d){var a=d&&d.exists&&d.data()._app,v=a&&typeof a.maintenance==='boolean'?a.maintenance:MAINT_DEFAULT;window.__cineMaintV=v;maintCache(v);if(isAdmin()){maintPill(v);maintAcc(v);return;}if(v&&!maintLocked){maintLock();}else if(!v&&maintLocked){location.reload();}},function(){});}catch(_){}}
@@ -20536,7 +20545,7 @@ function recoBtnScan(root){if(!window.CineSocial)return;(root||document).querySe
   }
   function showLogin(mode){
     mode=mode||'login';
-    maintHideScreen();var o=overlay((maintLocked?'<div class="acl-maint">🛠️ Appli en maintenance : seul l\'admin peut se connecter pour l\'instant</div>':'')+'<div style="font-size:2.4rem">🎬</div><h2>Mon Ciné Tracker</h2><p>'+(mode==='login'?'Connecte-toi à ton compte':'Crée ton compte — l\'admin devra valider ta demande')+'</p>'
+    maintHideScreen();var o=overlay((maintLocked?'<div class="acl-maint">🛠️ Appli en maintenance : seul l\'admin peut se connecter pour l\'instant</div>':'')+'<div style="font-size:2.4rem">🔥</div><h2>Mon Scène Tracker</h2><p>'+(mode==='login'?'Connecte-toi à ton compte':'Crée ton compte — l\'admin devra valider ta demande')+'</p>'
       +(mode==='signup'?'<input id="acl-name" placeholder="Prénom / pseudo" maxlength="24">':'')
       +'<input id="acl-mail" type="email" placeholder="E-mail" autocomplete="email"><div class="acl-pw"><input id="acl-pass" type="password" placeholder="Mot de passe (6 caractères min.)" autocomplete="'+(mode==='login'?'current-password':'new-password')+'"><button type="button" class="acl-eye" id="acl-eye" title="Afficher / masquer le mot de passe">👁️</button></div>'
       +'<div class="acl-err" id="acl-err"></div><button class="acl-btn" id="acl-go">'+(mode==='login'?'Se connecter':'Envoyer ma demande')+'</button>'
@@ -20703,10 +20712,10 @@ function recoBtnScan(root){if(!window.CineSocial)return;(root||document).querySe
     // 1re synchro de cet appareil : on envoie tout ce qui existe déjà (ex. données locales d'avant les comptes)
     var last=parseInt(rget('cineCloudSync_'+uid)||'0');
     var remote=(userDoc&&userDoc.updatedAt)||0;
-    if(remote>last+5000){try{if(sessionStorage.getItem('cineCloudReloaded')!==String(remote)){sessionStorage.setItem('cineCloudReloaded',String(remote));pullAll(uid).then(function(){location.reload();});return;}}catch(_){}}
-    if(!remote){for(var i=0;i<localStorage.length;i++){var rk=localStorage.key(i);var pre='u_'+uid+'__';if(rk&&rk.indexOf(pre)===0){dirty[rk.slice(pre.length)]=rget(rk);}}
+    if(remote>last+5000){try{if(sessionStorage.getItem('stCloudReloaded')!==String(remote)){sessionStorage.setItem('stCloudReloaded',String(remote));pullAll(uid).then(function(){location.reload();});return;}}catch(_){}}
+    if(!remote){var pre0=NS+'u_'+uid+'__';for(var i=0;i<localStorage.length;i++){var rk=localStorage.key(i);if(rk&&rk.indexOf(pre0)===0){dirty[rk.slice(pre0.length)]=raw.get.call(localStorage,rk);}}
       // données locales « d'avant » (profil principal sans compte) : proposées à l'import
-      if(!Object.keys(dirty).length&&rget('cineItems')&&confirm('Importer dans ton compte la collection déjà présente sur cet appareil ?')){for(var j=0;j<localStorage.length;j++){var k2=localStorage.key(j);if(k2&&k2.indexOf('cine')===0&&k2.indexOf('cineCloud')!==0&&k2!=='cineAuthUid'&&k2!=='cineProfilesReg'){rset(pre+k2,rget(k2));dirty[k2]=rget(k2);}}flush(uid);setTimeout(function(){location.reload();},2500);return;}
+      if(!Object.keys(dirty).length&&rget('cineItems')&&confirm('Importer dans ton compte la collection déjà présente sur cet appareil ?')){var pre='u_'+uid+'__';for(var j=0;j<localStorage.length;j++){var k2=localStorage.key(j);if(k2&&k2.indexOf(NS)===0){var bare=k2.slice(NS.length);if((bare.indexOf('cine')===0||bare.indexOf('cc')===0||bare.indexOf('ct_')===0)&&bare.indexOf('cineCloud')!==0&&bare!=='cineAuthUid'&&bare!=='ProfilesReg'){var val=raw.get.call(localStorage,k2);rset(pre+bare,val);dirty[bare]=val;}}}flush(uid);setTimeout(function(){location.reload();},2500);return;}
       flush(uid);}
   }
   /* --- Admin : demandes d'inscription --- */
@@ -20800,11 +20809,23 @@ function recoBtnScan(root){if(!window.CineSocial)return;(root||document).querySe
   window.CineFs=function(){try{if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen({navigationUI:'hide'}).catch(function(){});}catch(e){}};
   var deferred=null;
   window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();deferred=e;
-    setTimeout(function(){bar('📱 Mettre Ciné Tracker sur ton écran d\'accueil ? <button id="pwa-go" style="background:#FF4D6D;color:#fff;border:none;border-radius:8px;padding:6px 12px;cursor:pointer;font-weight:600">Installer</button>',function(){deferred.prompt();});},4000);
+    setTimeout(function(){bar('📱 Mettre Scène Tracker sur ton écran d\'accueil ? <button id="pwa-go" style="background:#FF4D6D;color:#fff;border:none;border-radius:8px;padding:6px 12px;cursor:pointer;font-weight:600">Installer</button>',function(){deferred.prompt();});},4000);
   });
   var ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
   if(ios&&!standalone)setTimeout(function(){bar('📱 Pour l\'avoir comme une appli : touche <b>Partager</b> ⬆️ puis <b>« Sur l\'écran d\'accueil »</b>');},5000);
   window.CinePWA={install:function(){if(deferred){deferred.prompt();}}};
+})();
+</script>
+<script>
+/* Ciné Clash a été entièrement retiré de ce site : ce verrou de sécurité neutralise, en plus
+   de la suppression de la tuile et du code d'origine, tout point d'entrée qui aurait pu rester
+   (invitation d'un pote reçue avant le retrait, atelier admin, etc.), quoi qu'il arrive. */
+(function(){
+  try{if(typeof gameCineClash==='function')window.gameCineClash=function(){};}catch(_){}
+  try{if(typeof ccStartMatch==='function')window.ccStartMatch=function(){};}catch(_){}
+  try{if(typeof ccInvitePopup==='function')window.ccInvitePopup=function(){};}catch(_){}
+  try{if(typeof cc9Creator==='function')window.cc9Creator=function(){};}catch(_){}
+  try{if(typeof GAMES!=='undefined')GAMES=GAMES.filter(function(g){return g.id!=='clash';});}catch(_){}
 })();
 </script>
 </body>
