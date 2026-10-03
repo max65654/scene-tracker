@@ -5057,6 +5057,12 @@ function openSecretEditor(id){
     +'<option value="vertical"'+(it.posterFormat!=='landscape'?' selected':'')+'>📱 Vertical (portrait)</option>'
     +'<option value="landscape"'+(it.posterFormat==='landscape'?' selected':'')+'>🖥️ Paysage</option>'
     +'</select><br>'
+    +'<label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:6px;">🎥 Extrait vidéo perso</label>'
+    +'<div style="margin-bottom:16px;">'
+    +(it.hasLocalVideo
+      ?'<button type="button" class="sub-action" id="secret-video-play">▶ Regarder l\'extrait</button> <button type="button" class="sub-action" id="secret-video-remove" style="color:var(--raspberry);">🗑 Retirer</button>'
+      :'<button type="button" class="sub-action" id="secret-video-pick">📁 Importer un extrait</button><input type="file" id="secret-video-input" accept="video/*" style="display:none">')
+    +'</div>'
     +'<label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:6px;">Genres (thèmes parodiés)</label>'
     +'<div id="secret-genre-chips" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;">'
     +PRESET_GENRES_LOCKED.map(function(g){return '<button type="button" class="preset-genre-chip'+(it.tags.indexOf(g)>=0?' on':'')+'" data-g="'+esc(g)+'" style="background:'+(it.tags.indexOf(g)>=0?'var(--raspberry)':'var(--card-bg)')+';color:'+(it.tags.indexOf(g)>=0?'#fff':'var(--muted)')+';border:2px solid var(--border);border-radius:999px;padding:5px 12px;font-size:.74rem;font-weight:600;cursor:pointer;">'+esc(g)+'</button>';}).join('')
@@ -5064,6 +5070,12 @@ function openSecretEditor(id){
     +'<button type="button" class="sub-action" id="secret-editor-save">✓ Enregistrer</button>'
     +'</div>';
   document.getElementById('secret-editor-back').addEventListener('click',renderSecretGrid);
+  // Enregistré tout de suite au changement (pas seulement via "Enregistrer" en bas) : sinon
+  // un choix de format pas encore validé était perdu si on attachait un extrait vidéo juste
+  // après, ce qui reconstruit cet écran et réaffiche la sélection d'origine.
+  document.getElementById('secret-format-select').addEventListener('change',function(e){
+    it.posterFormat=e.target.value;sv();
+  });
   grid.querySelectorAll('#secret-genre-chips [data-g]').forEach(function(chip){
     chip.addEventListener('click',function(){
       var g=chip.dataset.g,i=it.tags.indexOf(g);
@@ -5074,6 +5086,28 @@ function openSecretEditor(id){
   document.getElementById('secret-editor-save').addEventListener('click',function(){
     it.posterFormat=document.getElementById('secret-format-select').value;
     sv();toast('Enregistré ✓');renderSecretGrid();
+  });
+  // Extrait vidéo perso (même stockage IndexedDB que sur une fiche normale — voir
+  // saveLocalVideo/deleteLocalVideo/playLocalVideoGeneric) — dispo direct ici, dans
+  // l'éditeur ouvert automatiquement juste après l'ajout.
+  var svPick=document.getElementById('secret-video-pick'),svInput=document.getElementById('secret-video-input');
+  if(svPick&&svInput){
+    svPick.addEventListener('click',function(){svInput.click();});
+    svInput.addEventListener('change',function(e){
+      var f=e.target.files[0];if(!f)return;
+      saveLocalVideo(id,null,null,f).then(function(){
+        it.hasLocalVideo=true;sv();toast('🎬 Extrait importé !');openSecretEditor(id);
+      }).catch(function(){toast('Erreur lors de l\'import — fichier trop volumineux ?');});
+    });
+  }
+  var svPlay=document.getElementById('secret-video-play');
+  if(svPlay)svPlay.addEventListener('click',function(){playLocalVideoGeneric(id,null,null);});
+  var svRemove=document.getElementById('secret-video-remove');
+  if(svRemove)svRemove.addEventListener('click',function(){
+    if(!confirm('Retirer la vidéo importée pour ce titre ?'))return;
+    deleteLocalVideo(id,null,null).then(function(){
+      it.hasLocalVideo=false;sv();toast('Vidéo retirée.');openSecretEditor(id);
+    });
   });
 }
 (function(){
@@ -5136,9 +5170,12 @@ function addSecretTpdbItem(sc){
   var performers=(sc.performers||[]).map(function(p){return p&&(p.name||(p.parent&&p.parent.name));}).filter(Boolean).join(', ');
   var poster=sc.image||sc.front_image||sc.cover||(Array.isArray(sc.posters)&&sc.posters[0]&&(sc.posters[0].url||sc.posters[0]))||sc.background||sc.back_image||'';
   var banner=sc.background||sc.back_image||sc.image||poster||'';
-  var it={id:Date.now()+Math.floor(Math.random()*999),title:title,year:year,type:'film',cartoon:false,status:'a_voir',rating:0,fav:false,tags:[],review:'',personalNotes:'',quote:'',poster:poster,banner:banner,director:studio,cast:performers,watchedDate:'',favChar:'',favCouple:'',addedAt:Date.now(),synopsis:synopsis,seriesStatus:'',nbSeasons:0,tmdbId:null,tmdbType:null,progress:null,lastEpDate:null,runtime:0,epRuntime:0,tmdbRating:0,rewatchCount:0,networkName:studio,locked:true,posterFormat:'vertical'};
-  items.unshift(it);sv();renderAll();renderSecretGrid();
+  var it={id:Date.now()+Math.floor(Math.random()*999),title:title,year:year,type:'film',cartoon:false,status:'a_voir',rating:0,fav:false,tags:[],review:'',personalNotes:'',quote:'',poster:poster,banner:banner,director:studio,cast:performers,watchedDate:'',favChar:'',favCouple:'',addedAt:Date.now(),synopsis:synopsis,seriesStatus:'',nbSeasons:0,tmdbId:null,tmdbType:null,progress:null,lastEpDate:null,runtime:0,epRuntime:0,tmdbRating:0,rewatchCount:0,networkName:studio,locked:true,posterFormat:'vertical',hasLocalVideo:false};
+  items.unshift(it);sv();renderAll();
   toast('Ajouté dans le coin verrouillé ✓ — '+title);
+  // On ouvre direct l'éditeur du titre tout juste ajouté — le format et l'extrait
+  // vidéo se choisissent dans la foulée de l'ajout, pas en repassant plus tard par la grille.
+  openSecretEditor(it.id);
 }
 (function(){
   var to=document.getElementById('tagpage-overlay'),tc=document.getElementById('tagpage-close');
