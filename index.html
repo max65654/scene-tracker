@@ -3093,10 +3093,73 @@ function tpdbFullImg(p){if(!p)return'';return /^https?:\/\//.test(p)?p:''+p;}
   function tagNames(sc){return (sc.tags||sc.categories||[]).map(function(t){return (t&&(t.name||t))||'';}).filter(Boolean);}
   var KIND_EP={movie:'scenes',tv:'movies'};
 
+  /* ====== EPORNER — 2e source, en complément de ThePornDB ======
+     L'API publique Eporner (v2) ne demande pas de clé : contrairement à ThePornDB,
+     aucune authentification n'est nécessaire, donc rien à coller dans les réglages
+     pour celle-ci — elle est simplement active en permanence, en plus de ThePornDB.
+     On normalise chaque vidéo Eporner vers le même format "scène" que ThePornDB
+     (title/description/image/site/performers/tags/date) pour que tout le reste du
+     pipeline (toSearchResult, toDetailShape, img, studioName…) la traite sans
+     aucun changement. Les id Eporner sont préfixés "epr_" pour les reconnaître
+     au moment du fetch détail. Eporner n'a pas de base d'interprètes structurée
+     ni de vrai synopsis par vidéo : on laisse ces champs honnêtement vides plutôt
+     que d'inventer des infos.
+  */
+  var EPORNER_BASE='https://www.eporner.com/api/v2/video';
+  function epornerToScene(v){
+    if(!v||!v.id)return null;
+    var thumbs=Array.isArray(v.thumbs)?v.thumbs:[];
+    var big=(v.default_thumb&&v.default_thumb.src)||(thumbs[0]&&thumbs[0].src)||'';
+    var bg=(thumbs[thumbs.length-1]&&thumbs[thumbs.length-1].src)||big;
+    return {
+      id:'epr_'+v.id,
+      title:v.title||'',
+      date:(v.added||'').slice(0,10),
+      description:v.description||'',
+      image:big,background:bg,
+      site:{name:'Eporner'},
+      performers:[], // pas de base d'interprètes structurée côté Eporner
+      tags:(v.keywords||'').split(',').map(function(s){return s.trim();}).filter(Boolean),
+      duration:v.length_sec||0,
+      rating:v.rate?Math.round(parseFloat(v.rate))/10:0, // "rate" = % d'avis positifs (0-100) → ramené sur 0-10
+      _eporner:true,_epornerUrl:v.url||''
+    };
+  }
+  // Si eporner.com est bloqué/inaccessible sur le réseau de la personne (filtre
+  // parental, réseau d'entreprise/école…), un fetch() qui échoue lentement sur ce
+  // domaine ne doit JAMAIS retarder l'affichage des résultats ThePornDB — on borne
+  // donc chaque appel Eporner à un court timeout, au-delà duquel on retombe sur [].
+  function withTimeout(p,ms,fallback){
+    return new Promise(function(resolve){
+      var done=false;
+      var t=setTimeout(function(){if(!done){done=true;resolve(fallback);}},ms);
+      p.then(function(v){if(!done){done=true;clearTimeout(t);resolve(v);}},function(){if(!done){done=true;clearTimeout(t);resolve(fallback);}});
+    });
+  }
+  function epornerSearch(q){
+    if(!q)return Promise.resolve([]);
+    return withTimeout(j(_realFetch(EPORNER_BASE+'/search/?query='+encodeURIComponent(q)+'&per_page=8&thumbsize=big&order=latest&format=json'))
+      .then(function(d){return ((d&&d.videos)||[]).map(epornerToScene).filter(Boolean);})
+      .catch(function(){return [];}),4000,[]);
+  }
+  function epornerListing(order){
+    return withTimeout(j(_realFetch(EPORNER_BASE+'/search/?query=&per_page=10&thumbsize=big&order='+encodeURIComponent(order||'top-weekly')+'&format=json'))
+      .then(function(d){return ((d&&d.videos)||[]).map(epornerToScene).filter(Boolean);})
+      .catch(function(){return [];}),4000,[]);
+  }
+
   var _detail={};
   function rawDetail(kind,id){
     var k=kind+':'+id;
     if(_detail[k])return _detail[k];
+    if(typeof id==='string'&&id.indexOf('epr_')===0){
+      var eid=id.slice(4);
+      _detail[k]=withTimeout(j(_realFetch(EPORNER_BASE+'/id/?id='+encodeURIComponent(eid)+'&thumbsize=big&format=json')).then(function(d){
+        var vid=Array.isArray(d)?d[0]:d;
+        return epornerToScene(vid)||{};
+      }).catch(function(){return {};}),4000,{});
+      return _detail[k];
+    }
     _detail[k]=j(_realFetch(TB+'/'+KIND_EP[kind]+'/'+id,hdrs())).then(function(d){return (d&&(d.data||d))||{};});
     return _detail[k];
   }
@@ -3131,11 +3194,13 @@ function tpdbFullImg(p){if(!p)return'';return /^https?:\/\//.test(p)?p:''+p;}
   function searchBoth(q){
     return Promise.all([
       j(_realFetch(TB+'/scenes?q='+encodeURIComponent(q)+'&parse='+encodeURIComponent(q),hdrs())),
-      j(_realFetch(TB+'/movies?q='+encodeURIComponent(q)+'&parse='+encodeURIComponent(q),hdrs()))
+      j(_realFetch(TB+'/movies?q='+encodeURIComponent(q)+'&parse='+encodeURIComponent(q),hdrs())),
+      epornerSearch(q)
     ]).then(function(res){
-      var scenesD=res[0],moviesD=res[1];
+      var scenesD=res[0],moviesD=res[1],epr=res[2]||[];
+      var scenes=(scenesD&&(scenesD.data||scenesD.scenes||scenesD.results))||[];
       return {
-        scenes:(scenesD&&(scenesD.data||scenesD.scenes||scenesD.results))||[],
+        scenes:scenes.concat(epr), // Eporner rejoint les résultats "Scène" de ThePornDB
         movies:(moviesD&&(moviesD.data||moviesD.movies||moviesD.results))||[]
       };
     });
@@ -3188,11 +3253,13 @@ function tpdbFullImg(p){if(!p)return'';return /^https?:\/\//.test(p)?p:''+p;}
       var wantMovie=m[1]==='movie'||m[1]==='all',wantTv=m[1]==='tv'||m[1]==='all';
       return Promise.all([
         wantMovie?j(_realFetch(TB+'/scenes',hdrs())):Promise.resolve(null),
-        wantTv?j(_realFetch(TB+'/movies',hdrs())):Promise.resolve(null)
+        wantTv?j(_realFetch(TB+'/movies',hdrs())):Promise.resolve(null),
+        wantMovie?epornerListing('top-weekly'):Promise.resolve([])
       ]).then(function(res){
         var scenes=(res[0]&&(res[0].data||res[0].scenes||res[0].results))||[];
         var movies=(res[1]&&(res[1].data||res[1].movies||res[1].results))||[];
-        var out=scenes.map(function(s){return toSearchResult(s,'movie');}).concat(movies.map(function(s){return toSearchResult(s,'tv');}));
+        var epr=res[2]||[];
+        var out=scenes.concat(epr).map(function(s){return toSearchResult(s,'movie');}).concat(movies.map(function(s){return toSearchResult(s,'tv');}));
         return {results:out};
       });
     }
@@ -3765,6 +3832,9 @@ function tvmFetchShow(tmdbId){
 }
 var _tvmRunning=false;
 function tvmSyncAll(force){
+  // Désactivé : plus de notion d'épisodes/saisons sur ce tracker, donc plus rien à
+  // synchroniser avec TVmaze pour les horaires de diffusion.
+  return;
   if(_tvmRunning)return;
   var ids={};
   (items||[]).forEach(function(i){if(i.type==='serie'&&i.tmdbType==='tv'&&i.tmdbId&&i.status!=='abandonne')ids[i.tmdbId]=1;});
@@ -3979,8 +4049,13 @@ heartBtn.addEventListener('click',function(){currentFav=!currentFav;heartBtn.cla
 var currentType='film',currentStatus='termine',currentRating=0,currentFav=false,currentTags=[],posterDataUrl='',currentFilter='all',editingId=null,currentCartoon=false;
 (function(){var c=document.getElementById('cartoon-input');if(c)c.addEventListener('change',function(){currentCartoon=c.checked;});})();
 
-function toggleProgressRow(){var show=(currentType==='serie')&&(currentStatus==='en_cours'||currentStatus==='en_pause');document.getElementById('progress-row').style.display=show?'flex':'none';
-  var rf=document.getElementById('rating-field'),rn=document.getElementById('rating-serie-note');if(rf)rf.style.display=currentType==='serie'?'none':'';if(rn)rn.style.display=currentType==='serie'?'':'none';}
+function toggleProgressRow(){
+  // Scène ET Film sont tous les deux des contenus « plats » (pas d'épisodes/saisons à
+  // importer) sur ce tracker ThePornDB — on ne réaffiche jamais la ligne de progression
+  // par épisode, ni la note « calculée depuis les saisons ».
+  document.getElementById('progress-row').style.display='none';
+  var rf=document.getElementById('rating-field'),rn=document.getElementById('rating-serie-note');if(rf)rf.style.display='';if(rn)rn.style.display='none';
+}
 
 /* ====== DECIMAL RATING ====== */
 var ratingInput=document.getElementById('rating-input'),ratingSlider=document.getElementById('rating-slider'),starVisual=document.getElementById('star-visual');
@@ -4918,9 +4993,11 @@ function openModal(id){
     credits+='<b>Casting&nbsp;:</b> '+_castNames.map(function(n){return '<button type="button" class="actor-link" data-actorval="'+esc(n)+'">'+esc(n)+'</button>';}).join(', ');
   }
   var tags=(item.tags&&item.tags.length)?'<div class="modal-tags">'+item.tags.map(function(t){return'<button type="button" class="tag-link" data-tagval="'+esc(t)+'">'+esc(t)+'</button>';}).join('')+'</div>':'';
-  var stBadge='';if(item.type==='serie'&&item.seriesStatus){var sc=item.seriesStatus==='Ended'||item.seriesStatus==='Canceled'?'badge-ended':'badge-ok';var st=item.seriesStatus==='Ended'?'🔴 Terminée':item.seriesStatus==='Returning Series'?'🟢 En cours':item.seriesStatus;stBadge='<span class="aib-badge '+sc+'" style="font-size:.72rem;margin-left:6px;">'+st+'</span>';}
+  // Scène & Film = contenus plats (ThePornDB), aucun suivi par épisode/saison :
+  // pas de badge de statut de diffusion, pas de bloc de progression.
+  var stBadge='';
   var progressBlock='';
-  if(item.type==='serie'&&(item.status==='en_cours'||item.status==='en_pause')){
+  if(false&&item.type==='serie'&&(item.status==='en_cours'||item.status==='en_pause')){
     var prog=item.progress||{s:1,e:1};
     var pct=0;var epsD=episodes[item.id];if(epsD){var tot=0,seen=0;Object.keys(epsD).forEach(function(s){epsD[s].forEach(function(e){tot++;if(e.seen)seen++;});});if(tot)pct=Math.round(seen/tot*100);}
     var isPaused=item.status==='en_pause';
@@ -4928,7 +5005,7 @@ function openModal(id){
     var pauseAlert=isPaused?('<div class="stale-alert" style="background:rgba(255,107,107,.12);border-color:rgba(255,107,107,.4);color:var(--red-soft);">⏸️ '+(item.autoPaused?'Mise en pause automatique — pas reprise depuis plus d\'un mois, on te la remet en avant !':'Mise en pause volontaire — reprends quand tu veux !')+'</div>'):(stale?'<div class="stale-alert">⚠️ En pause depuis +1 mois — tu l\'as mis en cours il y a longtemps !</div>':'');
     progressBlock='<div class="progress-modal-wrap">'+pauseAlert+'<h4>'+headerTxt+'</h4><div class="prog-inputs-row"><span style="font-size:.8rem;color:var(--muted)">Mettre à jour :</span> <span style="font-size:.78rem;color:var(--muted)">S</span><input type="number" id="m-prog-s" value="'+prog.s+'" min="1" style="width:60px"><span style="font-size:.78rem;color:var(--muted)">E</span><input type="number" id="m-prog-e" value="'+prog.e+'" min="1" style="width:60px"><div class="prog-bar-full"><div class="prog-bar-fill" style="width:'+pct+'%"></div></div><button onclick="saveProgress('+id+')" style="font-family:\'Fredoka\',sans-serif;font-weight:700;font-size:.8rem;padding:6px 14px;border-radius:999px;border:none;background:var(--mint);color:#04473a;cursor:pointer;">OK</button></div>'+(isPaused?'<button onclick="resumeFromPause('+id+')" style="margin-top:8px;font-family:\'Fredoka\',sans-serif;font-weight:700;font-size:.8rem;padding:7px 16px;border-radius:999px;border:none;background:var(--blue);color:white;cursor:pointer;">▶️ Reprendre la série</button>':'')+'</div>';
   }
-  var nextEpBlock=(item.type==='serie'&&item.nextEpisode)?nextEpisodeCountdownHtml(item,{compact:true}):'';
+  var nextEpBlock=''; // pas de compte à rebours « prochain épisode » : contenus plats sans saisons
   var filmVideoBlock='';
   if(false&&item.type==='film'){ // bloc « Vidéo du film importée » retiré à la demande
     filmVideoBlock='<div class="film-video-block"><label>🎬 Vidéo du film (importée depuis ton PC)</label>'
@@ -4951,7 +5028,10 @@ function openModal(id){
   var quoteBlock=item.quote?'<div class="modal-quote">💬 <span>'+esc(item.quote)+'</span></div>':'';
   // Compteur de re-visionnages
   var rewatchBlock='<div class="rewatch-counter"><span class="rwc-lbl">👁️ Vu</span><button class="rwc-btn" onclick="bumpRewatch('+id+',-1)">−</button><span class="rwc-num">'+((item.rewatchCount||0)+1)+'×</span><button class="rwc-btn" onclick="bumpRewatch('+id+',1)">+</button></div>';
-  var hasTabs=item.type==='serie';
+  // Scène et Film sont tous les deux de simples fiches « vu / pas vu », jamais de saisons
+  // à importer — on n'affiche donc plus jamais l'onglet « Épisodes » (ex-UI séries de
+  // cine-tracker, non pertinente ici).
+  var hasTabs=false;
   document.getElementById('modal-content').innerHTML=
     '<div class="modal-hero" id="modal-hero">'+'<img class="modal-poster" id="modal-hero-img" src="'+((item.locked&&item.banner)||item.poster||'')+'" alt=""'+(item.poster||item.banner?'':' style="visibility:hidden"')+'>'
     +'<div class="modal-video-wrap" id="modal-video-wrap"><div id="modal-yt"></div><div class="vid-shield"></div></div>'
@@ -7191,6 +7271,10 @@ function autoAddNextSeasonToWishlist(it,d){
   pushWish({tmdbId:it.tmdbId,tmdbType:'tv',title:it.title,year:(d.first_air_date||'').slice(0,4),releaseDate:date,season:season,poster:poster,weekly:false,epLabel:'',synopsis:d.overview||'',networkName:tvCtx.networkName});
 }
 function scanSeriesStatusChanges(){
+  // Désactivé sur ce tracker : Scène & Film sont des fiches plates (ThePornDB), il n'y a
+  // plus de notion de saison/statut de diffusion à vérifier périodiquement.
+  return;
+  // eslint-disable-next-line no-unreachable
   var last=localStorage.getItem(STATUS_SCAN_KEY);
   var today=todayStr();
   if(last===today)return; // déjà scanné aujourd'hui
@@ -12581,7 +12665,7 @@ function buildFeed(){
   else if(nx)posts.push(feedPost('ct',now-3600000*5,'📢 Prochaine vente flash : <b>'+nx.f.n+'</b> ('+nx.at.toLocaleDateString('fr-FR',{weekday:'long'})+' à '+nx.f.from+'h). Garde tes 💎 !','','nx_'+today));
   var got=passState.mbadges[cs.id]||{};Object.keys(got).forEach(function(bid){var b=MONTH_BADGES.find(function(x){return x.id===bid;});if(b)posts.push(feedPost('ct',got[bid],'🏅 Bravo <b>'+esc(profName())+'</b> ! Badge du mois débloqué : '+b.ico+' <b>'+esc(b.n)+'</b> ('+esc(b.d)+')','','mb_'+bid));});
   items.forEach(function(it){var ne=it.nextEpisode;if(!ne||!ne.airDate||it.locked)return;var t=airDateTimeFor(it,ne.airDate);if(!t)return;var diff=t.getTime()-now;
-    if(diff<0&&diff>-2*86400000)posts.push(feedPost('tv',t.getTime(),(ne.dropCount>=3?'📦 <b>'+esc(it.title)+'</b> — toute la saison '+ne.season+' est dispo d\'un coup ('+ne.dropCount+' épisodes) 🍿':'🆕 <b>'+esc(it.title)+'</b> — S'+ne.season+'E'+ne.episode+(ne.name?' « '+esc(ne.name)+' »':'')+' est dispo ! '+(ne.isSeasonFinale?'🏁 C\'est le dernier de la saison.':'🍿')),it.banner||'', 'ep_'+it.id+'_'+ne.season+'_'+ne.episode));
+    if(diff<0&&diff>-2*86400000)posts.push(feedPost('tv',t.getTime(),(ne.dropCount>=3?'📦 <b>'+esc(it.title)+'</b> — toute la saison '+ne.season+' est dispo d\'un coup ('+ne.dropCount+' épisodes) 🍿':'🆕 <b>'+esc(it.title)+'</b> — S'+ne.season+'E'+ne.episode+(ne.name?' « '+esc(ne.name)+' »':'')+' est dispo ! '+(ne.isSeasonFinale?'🏁 C\'est le dernier de la saison.':'🍿')),it.banner||it.poster||'', 'ep_'+it.id+'_'+ne.season+'_'+ne.episode));
     else if(diff>0&&diff<3*86400000)posts.push(feedPost('tv',now-diff/10,'⏳ <b>'+esc(it.title)+'</b> — S'+ne.season+'E'+ne.episode+' arrive '+t.toLocaleDateString('fr-FR',{weekday:'long'})+' à '+t.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+(ne.isSeasonFinale?' · 🏁 finale de saison !':''),'', 'soon_'+it.id+'_'+ne.season+'_'+ne.episode));});
   (episodeNotifs||[]).slice(0,20).forEach(function(n){if(!n||!n.at)return;var k=n.kind||'';var txt=k==='renew'||k==='renewed'?'🎉 <b>'+esc(n.title)+'</b> est renouvelée pour une nouvelle saison !':k==='cancel'||k==='canceled'?'💔 <b>'+esc(n.title)+'</b> est annulée…':k==='ended'?'🏁 <b>'+esc(n.title)+'</b> est terminée pour de bon.':k==='date_changed'?'📅 La date de <b>'+esc(n.title)+'</b> a bougé.':k.indexOf('finale')===0?'🏁 Le prochain épisode de <b>'+esc(n.title)+'</b> est un final !':'';if(txt)posts.push(feedPost('tv',n.at,txt,n.poster||'', 'n_'+n.id));});
   wishlist.forEach(function(w){if(!w.releaseDate)return;var d=(new Date(w.releaseDate+'T12:00')-now)/86400000;if(d>-3&&d<8)posts.push(feedPost('out',new Date(w.releaseDate+'T08:00').getTime()-(d>0?d*86400000*0.9:0),d<=0?'🍿 <b>'+esc(w.title)+'</b> est sorti'+(w.season?' (saison '+w.season+')':'')+' !':'📆 <b>'+esc(w.title)+'</b>'+(w.season?' saison '+w.season:'')+' sort '+new Date(w.releaseDate+'T12:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})+'. Tu l\'attends 🔥',w.poster||'', 'w_'+w.id));});
