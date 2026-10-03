@@ -1230,6 +1230,11 @@ body.dark .fy-actors-head{color:#C9A8FF;}
 .actor-chip button:hover{color:var(--raspberry);}
 
 /* ── 🎭 Onglet Actrices (liste perso + cœur + note) ── */
+/* Les filtres Toutes/Coups de cœur/Notées suivent juste en dessous de la recherche —
+   sans ça, leur ligne (même sans z-index) passe quand même au-dessus du menu déroulant
+   de résultats, puisque .fy-actor-search-wrap n'a lui-même aucun z-index et se fait
+   donc recouvrir par tout ce qui vient après lui dans le flux normal de la page. */
+#view-actresses .fy-actor-search-wrap{z-index:5;}
 .actress-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px;}
 .actress-card{background:var(--card-bg);border-radius:18px;overflow:hidden;box-shadow:0 5px 0 var(--shadow);position:relative;cursor:pointer;transition:transform .2s;padding-bottom:10px;}
 .actress-card:hover{transform:translateY(-4px);}
@@ -3364,9 +3369,14 @@ function tpdbFullImg(p){if(!p)return'';return /^https?:\/\//.test(p)?p:''+p;}
     }
     if(/\/search\/person$/.test(path)){
       if(!q)return Promise.resolve({results:[]});
+      // Recherche d'interprète (onglet Actrices, favoris...) — on renvoie plusieurs
+      // résultats (pas juste le premier) avec leur vraie photo ThePornDB, pour que
+      // la liste déroulante ressemble à une vraie recherche et pas à un coup de dé.
       return j(_realFetch(TB+'/performers?q='+encodeURIComponent(q),hdrs())).then(function(d){
         var list=(d&&(d.data||d.performers||d.results))||[];
-        return {results:list.slice(0,1).map(function(p){return {id:p.id,name:p.name};})};
+        return {results:list.slice(0,8).map(function(p){
+          return {id:p.id,name:p.name,profile_path:perfImg(p),known_for_department:'Acting',_gender:perfGender(p)};
+        })};
       });
     }
     if(m=path.match(/\/person\/([^/]+)\/combined_credits$/)){
@@ -4731,7 +4741,7 @@ function renderLibrary(){
       +'<img src="'+(item.poster||genPosterUrl(item.title,item.type))+'" alt="">'
       +'<span class="type-badge '+item.type+(item.cartoon?' cartoon':'')+'">'+(item.cartoon?'🎨 ':'')+(item.type==='film'?'Scène':'Film')+'</span>'
       +(item.fav?'<span class="fav-badge">❤️</span>':'')
-      +(item.type==='film'?'<button class="landscape-toggle'+(item.posterFormat==='landscape'?' active':'')+'" data-landscape="'+item.id+'" title="'+(item.posterFormat==='landscape'?'Repasser en portrait':'Passer en paysage 16:9')+'">🖥️</button>':'')
+      +'<button class="landscape-toggle'+(item.posterFormat==='landscape'?' active':'')+'" data-landscape="'+item.id+'" title="'+(item.posterFormat==='landscape'?'Repasser en portrait':'Passer en paysage 16:9')+'">🖥️</button>'
       +'<button class="rewatch-toggle'+(item.toRewatch?' active':'')+'" data-rewatch="'+item.id+'" title="'+(item.toRewatch?'Sur la liste à revoir':'Marquer à revoir')+'">🔁</button>'
       +(item.personalNotes?'<span class="note-badge" title="">📌<span class="note-tip">'+esc(item.personalNotes)+'</span></span>':'')
       +'<span class="status-badge '+(item.status||'termine')+'">'+(item.status==='a_voir'?'À voir':item.status==='en_cours'?'En cours':item.status==='en_pause'?'En pause':'Vu')+'</span>'
@@ -4758,7 +4768,8 @@ function toggleRewatch(id){
   item.toRewatch=!item.toRewatch;sv();renderAll();
   toast(item.toRewatch?'Ajouté à ta liste "à revoir" 🔁':'Retiré de ta liste "à revoir"');
 }
-// Mode paysage (16:9) pour les cartes Scène, au lieu de l'affiche verticale 2:3 par défaut.
+// Mode paysage (16:9) pour les cartes de la collection (Scène ou Film), au lieu de
+// l'affiche verticale 2:3 par défaut — dispo sur chaque fiche, quel que soit son type.
 function toggleLandscape(id){
   var item=items.find(function(i){return i.id===id;});if(!item)return;
   item.posterFormat=item.posterFormat==='landscape'?'vertical':'landscape';sv();renderAll();
