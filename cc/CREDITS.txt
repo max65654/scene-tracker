@@ -1,0 +1,8 @@
+Ciné Clash — ressources 3D et sons
+- Personnages, décors, textures et sons : Kenney (www.kenney.nl) — licence CC0 (domaine public)
+- Robot animé : Quaternius (quaternius.com) — licence CC0 (domaine public)
+- GLTFLoader.js et SkeletonUtils.js : three.js (threejs.org) — licence MIT
+Les personnages du jeu sont des créations originales (couleurs, accessoires) construites sur ces modèles libres.
+- Personnages « kn/ » (zombies, cyborg, survivants, skateurs, disco, pirates) : Kenney (www.kenney.nl), via pmndrs market — licence CC0 (domaine public)
+- Renard (kn/fox.glb) : modèle PixelMannen (CC0), rigging et animations tomkranis — licence CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), conversion glTF Asobo Studio / scurest
+- Personnages « kk/ » (Lement, Mx, God Fray, Bat Bat, Yana, les Bloquise, Mr Keepa…) : construits sur le pack KayKit Adventurers de Kay Lousberg (www.kaylousberg.com) — licence CC0 (domaine public), recolorés et accessoirisés pour Ciné Clash
